@@ -3,6 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { apiClient } from '../lib/api';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { TeamManagement } from './TeamManagement';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -11,9 +12,10 @@ function cn(...inputs: ClassValue[]) {
 interface TeamDashboardProps {
   teamId: string;
   theme: 'light' | 'dark';
+  isOwner: boolean;
 }
 
-export const TeamDashboard: React.FC<TeamDashboardProps> = ({ teamId, theme }) => {
+export const TeamDashboard: React.FC<TeamDashboardProps> = ({ teamId, theme, isOwner }) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -38,6 +40,8 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({ teamId, theme }) =
 
   return (
     <div className="space-y-6">
+      <TeamManagement teamId={teamId} theme={theme} isOwner={isOwner} />
+
       <div className={cn(
         "p-6 rounded-2xl border",
         theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-gray-200"

@@ -663,7 +663,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
               
               <div className="flex animate-marquee whitespace-nowrap gap-16 items-center pr-16 opacity-50 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500">
                 {[...Array(2)].map((_, i) => (
-                  <React.Fragment key={i}>
+                  <React.Fragment key={`marquee1-${i}`}>
                     <GoogleLogo />
                     <MicrosoftLogo />
                     <SpotifyLogo />
@@ -678,7 +678,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
               </div>
               <div className="flex absolute top-0 left-0 animate-marquee2 whitespace-nowrap gap-16 items-center pr-16 opacity-50 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500">
                 {[...Array(2)].map((_, i) => (
-                  <React.Fragment key={i}>
+                  <React.Fragment key={`marquee2-${i}`}>
                     <GoogleLogo />
                     <MicrosoftLogo />
                     <SpotifyLogo />

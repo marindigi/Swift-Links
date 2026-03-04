@@ -942,24 +942,36 @@ async function startServer() {
 
   // URL Management APIs
   app.get("/api/urls", authenticate, (req: any, res) => {
-    const urls = db.prepare("SELECT * FROM urls WHERE userId = ? ORDER BY createdAt DESC").all(req.user.uid);
+    const urls = db.prepare(`
+      SELECT u.* FROM urls u
+      LEFT JOIN team_members tm ON u.teamId = tm.teamId AND tm.userId = ?
+      WHERE u.userId = ? OR tm.userId = ?
+      ORDER BY u.createdAt DESC
+    `).all(req.user.uid, req.user.uid, req.user.uid);
     res.json(urls);
   });
 
   app.delete("/api/urls/:id", authenticate, (req: any, res) => {
-    const result = db.prepare("DELETE FROM urls WHERE id = ? AND userId = ?").run(req.params.id, req.user.uid);
+    const result = db.prepare(`
+      DELETE FROM urls WHERE id = ? AND (
+        userId = ? OR teamId IN (SELECT teamId FROM team_members WHERE userId = ? AND role IN ('admin', 'owner'))
+      )
+    `).run(req.params.id, req.user.uid, req.user.uid);
     if (result.changes === 0) {
-      return res.status(404).json({ error: "URL not found" });
+      return res.status(404).json({ error: "URL not found or unauthorized" });
     }
     res.json({ success: true });
   });
 
   app.put("/api/urls/:id", authenticate, (req: any, res) => {
     const { originalUrl, expiresAt } = req.body;
-    const result = db.prepare("UPDATE urls SET originalUrl = ?, expiresAt = ? WHERE id = ? AND userId = ?")
-      .run(originalUrl, expiresAt, req.params.id, req.user.uid);
+    const result = db.prepare(`
+      UPDATE urls SET originalUrl = ?, expiresAt = ? WHERE id = ? AND (
+        userId = ? OR teamId IN (SELECT teamId FROM team_members WHERE userId = ?)
+      )
+    `).run(originalUrl, expiresAt, req.params.id, req.user.uid, req.user.uid);
     if (result.changes === 0) {
-      return res.status(404).json({ error: "URL not found" });
+      return res.status(404).json({ error: "URL not found or unauthorized" });
     }
     res.json({ success: true });
   });
@@ -970,8 +982,32 @@ async function startServer() {
     res.json(tags);
   });
 
+  app.put("/api/tags/:tagId", authenticate, (req: any, res) => {
+    const { tagId } = req.params;
+    const { name } = req.body;
+    const result = db.prepare("UPDATE tags SET name = ? WHERE id = ? AND userId = ?").run(name, tagId, req.user.uid);
+    if (result.changes === 0) return res.status(404).json({ error: "Tag not found or unauthorized" });
+    res.json({ success: true });
+  });
+
+  app.delete("/api/tags/:tagId", authenticate, (req: any, res) => {
+    const { tagId } = req.params;
+    db.prepare("DELETE FROM url_tags WHERE tagId = ?").run(tagId);
+    const result = db.prepare("DELETE FROM tags WHERE id = ? AND userId = ?").run(tagId, req.user.uid);
+    if (result.changes === 0) return res.status(404).json({ error: "Tag not found or unauthorized" });
+    res.json({ success: true });
+  });
+
   app.get("/api/urls/:urlId/tags", authenticate, (req: any, res) => {
     const { urlId } = req.params;
+    // Check if user has access to URL
+    const url = db.prepare(`
+      SELECT id FROM urls WHERE id = ? AND (
+        userId = ? OR teamId IN (SELECT teamId FROM team_members WHERE userId = ?)
+      )
+    `).get(urlId, req.user.uid, req.user.uid);
+    if (!url) return res.status(404).json({ error: "URL not found or unauthorized" });
+
     const tags = db.prepare("SELECT t.* FROM tags t JOIN url_tags ut ON t.id = ut.tagId WHERE ut.urlId = ?").all(urlId);
     res.json(tags);
   });
@@ -980,9 +1016,13 @@ async function startServer() {
     const { tagName } = req.body;
     const { urlId } = req.params;
     
-    // Check if url belongs to user
-    const url = db.prepare("SELECT * FROM urls WHERE id = ? AND userId = ?").get(urlId, req.user.uid);
-    if (!url) return res.status(404).json({ error: "URL not found" });
+    // Check if user has access to URL
+    const url = db.prepare(`
+      SELECT id FROM urls WHERE id = ? AND (
+        userId = ? OR teamId IN (SELECT teamId FROM team_members WHERE userId = ?)
+      )
+    `).get(urlId, req.user.uid, req.user.uid);
+    if (!url) return res.status(404).json({ error: "URL not found or unauthorized" });
 
     let tag = db.prepare("SELECT * FROM tags WHERE name = ? AND userId = ?").get(tagName, req.user.uid) as any;
     if (!tag) {
@@ -1002,9 +1042,13 @@ async function startServer() {
   app.delete("/api/urls/:urlId/tags/:tagId", authenticate, (req: any, res) => {
     const { urlId, tagId } = req.params;
     
-    // Check if url belongs to user
-    const url = db.prepare("SELECT * FROM urls WHERE id = ? AND userId = ?").get(urlId, req.user.uid);
-    if (!url) return res.status(404).json({ error: "URL not found" });
+    // Check if user has access to URL
+    const url = db.prepare(`
+      SELECT id FROM urls WHERE id = ? AND (
+        userId = ? OR teamId IN (SELECT teamId FROM team_members WHERE userId = ?)
+      )
+    `).get(urlId, req.user.uid, req.user.uid);
+    if (!url) return res.status(404).json({ error: "URL not found or unauthorized" });
 
     db.prepare("DELETE FROM url_tags WHERE urlId = ? AND tagId = ?").run(urlId, tagId);
     res.json({ success: true });
@@ -1018,15 +1062,60 @@ async function startServer() {
     res.json({ id: teamId, name, ownerId: req.user.uid });
   });
 
-  app.post("/api/teams/:teamId/members", authenticate, (req: any, res) => {
-    const { userId, role } = req.body;
-    // Check if user is owner
-    const team = db.prepare("SELECT * FROM teams WHERE id = ? AND ownerId = ?").get(req.params.teamId, req.user.uid);
-    if (!team) {
-      return res.status(403).json({ error: "Unauthorized" });
-    }
-    db.prepare("INSERT INTO team_members (teamId, userId, role) VALUES (?, ?, ?)").run(req.params.teamId, userId, role || 'member');
+  app.get("/api/teams/:teamId", authenticate, (req: any, res) => {
+    const { teamId } = req.params;
+    const team = db.prepare("SELECT * FROM teams WHERE id = ?").get(teamId);
+    if (!team) return res.status(404).json({ error: "Team not found" });
+    res.json(team);
+  });
+
+  app.get("/api/teams/:teamId/members", authenticate, (req: any, res) => {
+    const { teamId } = req.params;
+    const members = db.prepare("SELECT tm.*, u.email FROM team_members tm JOIN users u ON tm.userId = u.id WHERE tm.teamId = ?").all(teamId);
+    res.json(members);
+  });
+
+  app.put("/api/teams/:teamId/members/:userId", authenticate, (req: any, res) => {
+    const { teamId, userId } = req.params;
+    const { role } = req.body;
+    // Check if user is owner or admin
+    const member = db.prepare("SELECT role FROM team_members WHERE teamId = ? AND userId = ?").get(teamId, req.user.uid) as any;
+    const team = db.prepare("SELECT * FROM teams WHERE id = ? AND ownerId = ?").get(teamId, req.user.uid);
+    if (!team && (!member || member.role !== 'admin')) return res.status(403).json({ error: "Unauthorized" });
+    
+    db.prepare("UPDATE team_members SET role = ? WHERE teamId = ? AND userId = ?").run(role, teamId, userId);
     res.json({ success: true });
+  });
+
+  app.delete("/api/teams/:teamId/members/:userId", authenticate, (req: any, res) => {
+    const { teamId, userId } = req.params;
+    // Check if user is owner or admin
+    const member = db.prepare("SELECT role FROM team_members WHERE teamId = ? AND userId = ?").get(teamId, req.user.uid) as any;
+    const team = db.prepare("SELECT * FROM teams WHERE id = ? AND ownerId = ?").get(teamId, req.user.uid);
+    if (!team && (!member || member.role !== 'admin')) return res.status(403).json({ error: "Unauthorized" });
+    
+    db.prepare("DELETE FROM team_members WHERE teamId = ? AND userId = ?").run(teamId, userId);
+    res.json({ success: true });
+  });
+
+  app.post("/api/teams/:teamId/invite", authenticate, (req: any, res) => {
+    const { email, role } = req.body;
+    const { teamId } = req.params;
+    
+    // Check if user is owner or admin
+    const member = db.prepare("SELECT role FROM team_members WHERE teamId = ? AND userId = ?").get(teamId, req.user.uid) as any;
+    const team = db.prepare("SELECT * FROM teams WHERE id = ? AND ownerId = ?").get(teamId, req.user.uid);
+    if (!team && (!member || member.role !== 'admin')) return res.status(403).json({ error: "Unauthorized" });
+    
+    const user = db.prepare("SELECT id FROM users WHERE email = ?").get(email) as any;
+    if (!user) return res.status(404).json({ error: "User not found" });
+    
+    try {
+      db.prepare("INSERT INTO team_members (teamId, userId, role) VALUES (?, ?, ?)").run(teamId, user.id, role || 'member');
+      res.json({ success: true });
+    } catch (e) {
+      res.status(400).json({ error: "User already in team" });
+    }
   });
 
   app.get("/api/teams/:teamId/analytics", authenticate, (req: any, res) => {

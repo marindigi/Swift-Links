@@ -28,7 +28,8 @@ import { SupportView } from './components/SupportView';
 import { TasksView } from './components/TasksView';
 import { QrCodeModal } from './components/QrCodeModal';
 import { ClearHistoryModal } from './components/ClearHistoryModal';
-import { Domain, HistoryItem, ApiKey, User } from './types';
+import { TagManager } from './components/TagManager';
+import { Domain, HistoryItem, ApiKey, User, Tag } from './types';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -143,8 +144,17 @@ function AppContent() {
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [userTeams, setUserTeams] = useState<any[]>([]);
   const [selectedLink, setSelectedLink] = useState<any | null>(null);
-
+  const [allTags, setAllTags] = useState<Tag[]>([]);
+  const fetchTags = async () => {
+    try {
+      const tags = await apiClient('/api/tags');
+      setAllTags(tags);
+    } catch (error) {
+      console.error('Failed to fetch tags', error);
+    }
+  };
   useEffect(() => {
+    fetchTags();
     const fetchTeams = async () => {
       try {
         const teams = await apiClient('/api/teams');
@@ -1746,10 +1756,19 @@ function AppContent() {
           <div className="space-y-6">
             <h1 className="text-3xl font-display font-bold mb-2">Team Dashboard</h1>
             {userTeams.length > 0 ? (
-              <TeamDashboard teamId={userTeams[0].id} theme={theme} />
+              <TeamDashboard 
+                teamId={userTeams[0].id} 
+                theme={theme} 
+                isOwner={userTeams[0].ownerId === user?.id} 
+              />
             ) : (
               <p>No team found.</p>
             )}
+          </div>
+        ) : view === 'tags' ? (
+          <div className="space-y-6">
+            <h1 className="text-3xl font-display font-bold mb-2">Tags</h1>
+            <TagManager tags={allTags} theme={theme} onUpdate={fetchTags} />
           </div>
         ) : view === 'domains' ? (
           <div className="space-y-6">

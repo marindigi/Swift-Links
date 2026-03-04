@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link2, BarChart2, Sparkles, Globe, Key, Shield, User as UserIcon, LogOut, Sun, Moon, MessageSquare } from 'lucide-react';
+import { Link2, BarChart2, Sparkles, Globe, Key, Shield, User as UserIcon, LogOut, Sun, Moon, MessageSquare, Tag } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { User } from '../types';
 import { ExpirationBanner } from './ExpirationBanner';
@@ -111,16 +111,16 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             <span>Support</span>
           </button>
           <button
-            onClick={() => setView('team')}
+            onClick={() => setView('tags')}
             className={cn(
               "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
-              view === 'team' 
+              view === 'tags' 
                 ? "bg-brand text-white shadow-lg shadow-brand/20" 
                 : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
             )}
           >
-            <Shield size={18} />
-            <span>Team</span>
+            <Tag size={18} />
+            <span>Tags</span>
           </button>
           <div className="py-4">
             <div className="h-px bg-gray-200 dark:bg-white/5 mx-4" />

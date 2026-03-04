@@ -46,6 +46,7 @@ export const LinkDetailsModal: React.FC<LinkDetailsModalProps> = ({
   const [newTag, setNewTag] = useState('');
 
   useEffect(() => {
+    if (!link) return;
     const fetchTags = async () => {
       try {
         const fetchedTags = await apiClient(`/api/urls/${link.id}/tags`);
@@ -55,10 +56,10 @@ export const LinkDetailsModal: React.FC<LinkDetailsModalProps> = ({
       }
     };
     fetchTags();
-  }, [link.id]);
+  }, [link?.id]);
 
   const addTag = async () => {
-    if (!newTag) return;
+    if (!newTag || !link) return;
     try {
       const { tag } = await apiClient(`/api/urls/${link.id}/tags`, {
         method: 'POST',
@@ -74,6 +75,7 @@ export const LinkDetailsModal: React.FC<LinkDetailsModalProps> = ({
   };
 
   const removeTag = async (tagId: string) => {
+    if (!link) return;
     try {
       await apiClient(`/api/urls/${link.id}/tags/${tagId}`, {
         method: 'DELETE',
@@ -88,6 +90,7 @@ export const LinkDetailsModal: React.FC<LinkDetailsModalProps> = ({
   if (!link) return null;
 
   const handleUpdate = async () => {
+    if (!link) return;
     setIsUpdating(true);
     try {
       await onUpdate(link.id, { originalUrl, expiresAt: expiresAt || null });
