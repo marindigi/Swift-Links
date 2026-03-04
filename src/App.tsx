@@ -20,7 +20,9 @@ import { DomainManager } from './components/DomainManager';
 import { ApiKeyManager } from './components/ApiKeyManager';
 import { ProfileView } from './components/ProfileView';
 
+import { LinkDetailsModal } from './components/LinkDetailsModal';
 import { PaymentModal } from './components/PaymentModal';
+import { TeamDashboard } from './components/TeamDashboard';
 import { AdminView } from './components/AdminView';
 import { SupportView } from './components/SupportView';
 import { TasksView } from './components/TasksView';
@@ -139,9 +141,47 @@ function AppContent() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [userTeams, setUserTeams] = useState<any[]>([]);
+  const [selectedLink, setSelectedLink] = useState<any | null>(null);
+
+  useEffect(() => {
+    const fetchTeams = async () => {
+      try {
+        const teams = await apiClient('/api/teams');
+        setUserTeams(teams);
+      } catch (error) {
+        console.error('Failed to fetch teams', error);
+      }
+    };
+    fetchTeams();
+  }, []);
   const [isClearHistoryModalOpen, setIsClearHistoryModalOpen] = useState(false);
   const [expiresAt, setExpiresAt] = useState('');
   const [hasError, setHasError] = useState(false);
+
+  const handleUpdateLink = async (id: string, updates: { originalUrl: string; expiresAt: string | null }) => {
+    try {
+      await apiClient(`/api/urls/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+        successMessage: 'Link updated successfully'
+      });
+      
+      // Update history
+      const newHistory = history.map(item => 
+        item.id === id ? { ...item, ...updates } : item
+      );
+      saveHistory(newHistory);
+      
+      // Update selected link
+      if (selectedLink) {
+        setSelectedLink({ ...selectedLink, ...updates });
+      }
+    } catch (error) {
+      throw error;
+    }
+  };
   
   // Payment state
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -161,7 +201,7 @@ function AppContent() {
   }, [customErrorMessages]);
   
   // Analytics state
-  const [view, setView] = useState<'home' | 'analytics' | 'profile' | 'admin' | 'tasks' | 'domains' | 'api-keys'>('home');
+  const [view, setView] = useState<'home' | 'analytics' | 'profile' | 'admin' | 'tasks' | 'domains' | 'api-keys' | 'team'>('home');
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
   
@@ -1669,6 +1709,24 @@ function AppContent() {
               onClear={() => setIsClearHistoryModalOpen(true)}
               openShareModal={openShareModal}
               openQrModal={openQrModal}
+              openEditModal={(link) => setSelectedLink({
+                id: link.id,
+                originalUrl: link.originalUrl,
+                shortUrl: link.shortUrl,
+                clicks: link.clicks || 0,
+                expiresAt: link.expiresAt || null,
+                domainName: null,
+                createdAt: new Date(link.timestamp).toISOString()
+              })}
+            />
+
+            <LinkDetailsModal
+              isOpen={!!selectedLink}
+              onClose={() => setSelectedLink(null)}
+              link={selectedLink}
+              theme={theme}
+              onDelete={deleteFromHistory}
+              onUpdate={handleUpdateLink}
             />
 
             {/* Clear History Modal */}
@@ -1684,6 +1742,15 @@ function AppContent() {
             setView={setView}
             onRefresh={fetchAnalytics}
           />
+        ) : view === 'team' ? (
+          <div className="space-y-6">
+            <h1 className="text-3xl font-display font-bold mb-2">Team Dashboard</h1>
+            {userTeams.length > 0 ? (
+              <TeamDashboard teamId={userTeams[0].id} theme={theme} />
+            ) : (
+              <p>No team found.</p>
+            )}
+          </div>
         ) : view === 'domains' ? (
           <div className="space-y-6">
             <div className="flex items-center justify-between">

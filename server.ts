@@ -253,10 +253,12 @@ db.exec(`
     domainId TEXT,
     domainName TEXT,
     userId TEXT,
+    teamId TEXT,
     clicks INTEGER DEFAULT 0,
     expiresAt DATETIME,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(userId) REFERENCES users(id)
+    FOREIGN KEY(userId) REFERENCES users(id),
+    FOREIGN KEY(teamId) REFERENCES teams(id)
   );
 
   CREATE TABLE IF NOT EXISTS domains (
@@ -265,6 +267,24 @@ db.exec(`
     userId TEXT,
     status TEXT DEFAULT 'pending',
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(userId) REFERENCES users(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS teams (
+    id TEXT PRIMARY KEY,
+    name TEXT,
+    ownerId TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(ownerId) REFERENCES users(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS team_members (
+    teamId TEXT,
+    userId TEXT,
+    role TEXT DEFAULT 'member',
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY(teamId, userId),
+    FOREIGN KEY(teamId) REFERENCES teams(id),
     FOREIGN KEY(userId) REFERENCES users(id)
   );
 
@@ -358,6 +378,21 @@ db.exec(`
     apiKey TEXT PRIMARY KEY,
     count INTEGER DEFAULT 0,
     resetAt DATETIME
+  );
+
+  CREATE TABLE IF NOT EXISTS tags (
+    id TEXT PRIMARY KEY,
+    name TEXT UNIQUE,
+    userId TEXT,
+    FOREIGN KEY(userId) REFERENCES users(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS url_tags (
+    urlId TEXT,
+    tagId TEXT,
+    PRIMARY KEY(urlId, tagId),
+    FOREIGN KEY(urlId) REFERENCES urls(id),
+    FOREIGN KEY(tagId) REFERENCES tags(id)
   );
 `);
 
@@ -919,10 +954,99 @@ async function startServer() {
     res.json({ success: true });
   });
 
-  // Domain Management APIs
-  app.get("/api/domains", (_req, res) => {
-    const domains = db.prepare("SELECT * FROM domains ORDER BY createdAt DESC").all();
-    res.json(domains);
+  app.put("/api/urls/:id", authenticate, (req: any, res) => {
+    const { originalUrl, expiresAt } = req.body;
+    const result = db.prepare("UPDATE urls SET originalUrl = ?, expiresAt = ? WHERE id = ? AND userId = ?")
+      .run(originalUrl, expiresAt, req.params.id, req.user.uid);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: "URL not found" });
+    }
+    res.json({ success: true });
+  });
+
+  // Tag Management APIs
+  app.get("/api/tags", authenticate, (req: any, res) => {
+    const tags = db.prepare("SELECT * FROM tags WHERE userId = ?").all(req.user.uid);
+    res.json(tags);
+  });
+
+  app.get("/api/urls/:urlId/tags", authenticate, (req: any, res) => {
+    const { urlId } = req.params;
+    const tags = db.prepare("SELECT t.* FROM tags t JOIN url_tags ut ON t.id = ut.tagId WHERE ut.urlId = ?").all(urlId);
+    res.json(tags);
+  });
+
+  app.post("/api/urls/:urlId/tags", authenticate, (req: any, res) => {
+    const { tagName } = req.body;
+    const { urlId } = req.params;
+    
+    // Check if url belongs to user
+    const url = db.prepare("SELECT * FROM urls WHERE id = ? AND userId = ?").get(urlId, req.user.uid);
+    if (!url) return res.status(404).json({ error: "URL not found" });
+
+    let tag = db.prepare("SELECT * FROM tags WHERE name = ? AND userId = ?").get(tagName, req.user.uid) as any;
+    if (!tag) {
+      const tagId = nanoid();
+      db.prepare("INSERT INTO tags (id, name, userId) VALUES (?, ?, ?)").run(tagId, tagName, req.user.uid);
+      tag = { id: tagId, name: tagName };
+    }
+
+    try {
+      db.prepare("INSERT INTO url_tags (urlId, tagId) VALUES (?, ?)").run(urlId, tag.id);
+      res.json({ success: true, tag });
+    } catch (e) {
+      res.status(400).json({ error: "Tag already added to this URL" });
+    }
+  });
+
+  app.delete("/api/urls/:urlId/tags/:tagId", authenticate, (req: any, res) => {
+    const { urlId, tagId } = req.params;
+    
+    // Check if url belongs to user
+    const url = db.prepare("SELECT * FROM urls WHERE id = ? AND userId = ?").get(urlId, req.user.uid);
+    if (!url) return res.status(404).json({ error: "URL not found" });
+
+    db.prepare("DELETE FROM url_tags WHERE urlId = ? AND tagId = ?").run(urlId, tagId);
+    res.json({ success: true });
+  });
+
+  app.post("/api/teams", authenticate, (req: any, res) => {
+    const { name } = req.body;
+    const teamId = nanoid();
+    db.prepare("INSERT INTO teams (id, name, ownerId) VALUES (?, ?, ?)").run(teamId, name, req.user.uid);
+    db.prepare("INSERT INTO team_members (teamId, userId, role) VALUES (?, ?, ?)").run(teamId, req.user.uid, 'owner');
+    res.json({ id: teamId, name, ownerId: req.user.uid });
+  });
+
+  app.post("/api/teams/:teamId/members", authenticate, (req: any, res) => {
+    const { userId, role } = req.body;
+    // Check if user is owner
+    const team = db.prepare("SELECT * FROM teams WHERE id = ? AND ownerId = ?").get(req.params.teamId, req.user.uid);
+    if (!team) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+    db.prepare("INSERT INTO team_members (teamId, userId, role) VALUES (?, ?, ?)").run(req.params.teamId, userId, role || 'member');
+    res.json({ success: true });
+  });
+
+  app.get("/api/teams/:teamId/analytics", authenticate, (req: any, res) => {
+    const { teamId } = req.params;
+    
+    // Check if user is member of team
+    const member = db.prepare("SELECT * FROM team_members WHERE teamId = ? AND userId = ?").get(teamId, req.user.uid);
+    if (!member) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    const totalClicks = db.prepare("SELECT COUNT(*) as count FROM clicks c JOIN urls u ON c.urlId = u.id WHERE u.teamId = ?").get(teamId) as any;
+    const topLinks = db.prepare("SELECT u.shortUrl, COUNT(c.id) as clickCount FROM clicks c JOIN urls u ON c.urlId = u.id WHERE u.teamId = ? GROUP BY u.id ORDER BY clickCount DESC LIMIT 5").all(teamId);
+    const geoDistribution = db.prepare("SELECT country, COUNT(*) as count FROM clicks c JOIN urls u ON c.urlId = u.id WHERE u.teamId = ? GROUP BY country").all(teamId);
+
+    res.json({
+      totalClicks: totalClicks.count,
+      topLinks,
+      geoDistribution
+    });
   });
 
 // Plan Limits

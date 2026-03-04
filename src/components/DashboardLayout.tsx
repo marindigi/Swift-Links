@@ -110,6 +110,18 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             <MessageSquare size={18} />
             <span>Support</span>
           </button>
+          <button
+            onClick={() => setView('team')}
+            className={cn(
+              "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
+              view === 'team' 
+                ? "bg-brand text-white shadow-lg shadow-brand/20" 
+                : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+            )}
+          >
+            <Shield size={18} />
+            <span>Team</span>
+          </button>
           <div className="py-4">
             <div className="h-px bg-gray-200 dark:bg-white/5 mx-4" />
           </div>

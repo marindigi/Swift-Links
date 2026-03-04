@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { History, Search, ArrowUpDown, Trash2, Copy, Share2, ExternalLink, X, Sparkles, ChevronDown, Download, QrCode, Clock, MousePointer2, Loader2 } from 'lucide-react';
+import { History, Search, ArrowUpDown, Trash2, Copy, Share2, ExternalLink, X, Sparkles, ChevronDown, Download, QrCode, Clock, MousePointer2, Loader2, Edit2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { HistoryItem } from '../types';
+import { HistoryItem, Tag } from '../types';
+import { apiClient } from '../lib/api';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -17,6 +18,7 @@ interface HistoryListProps {
   onClear: () => void;
   openShareModal: (url: string) => void;
   openQrModal: (url: string) => void;
+  openEditModal: (link: HistoryItem) => void;
 }
 
 export const HistoryList: React.FC<HistoryListProps> = ({ 
@@ -25,11 +27,15 @@ export const HistoryList: React.FC<HistoryListProps> = ({
   onDelete, 
   onClear,
   openShareModal,
-  openQrModal
+  openQrModal,
+  openEditModal
 }) => {
   const [historySearch, setHistorySearch] = useState('');
   const [filterExpiresAt, setFilterExpiresAt] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'individual' | 'bulk'>('all');
+  const [filterTag, setFilterTag] = useState<string>('all');
+  const [allTags, setAllTags] = useState<Tag[]>([]);
+  const [urlTags, setUrlTags] = useState<Record<string, Tag[]>>({});
   const [historySortBy, setHistorySortBy] = useState<'timestamp' | 'originalUrl' | 'shortUrl' | 'clicks'>('timestamp');
   const [historySortOrder, setHistorySortOrder] = useState<'asc' | 'desc'>('desc');
   const [confirmDeleteHistoryId, setConfirmDeleteHistoryId] = useState<string | null>(null);
@@ -37,12 +43,34 @@ export const HistoryList: React.FC<HistoryListProps> = ({
   const [bulkViewMode, setBulkViewMode] = useState<'url' | 'id'>('url');
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const tags = await apiClient('/api/tags');
+        setAllTags(tags);
+        
+        // Fetch all URL tags in one go if possible, or at least optimize
+        // For now, let's keep it simple but ensure we only fetch when history changes
+        const tagsMap: Record<string, Tag[]> = {};
+        await Promise.all(history.map(async (item) => {
+          const itemTags = await apiClient(`/api/urls/${item.id}/tags`);
+          tagsMap[item.id] = itemTags;
+        }));
+        setUrlTags(tagsMap);
+      } catch (error) {
+        console.error('Failed to fetch tags', error);
+      }
+    };
+    fetchData();
+  }, [history]);
+
   const filteredHistory = history
     .filter(item => 
       ((item.originalUrl || '').toLowerCase().includes(historySearch.toLowerCase()) ||
       (item.shortUrl || '').toLowerCase().includes(historySearch.toLowerCase())) &&
       (filterExpiresAt ? item.expiresAt?.startsWith(filterExpiresAt) : true) &&
-      (filterType === 'all' ? true : filterType === 'bulk' ? item.isBulk : !item.isBulk)
+      (filterType === 'all' ? true : filterType === 'bulk' ? item.isBulk : !item.isBulk) &&
+      (filterTag === 'all' ? true : (urlTags[item.id] || []).some(t => t.id === filterTag))
     )
     .sort((a, b) => {
       let comparison = 0;
@@ -105,6 +133,22 @@ export const HistoryList: React.FC<HistoryListProps> = ({
               </button>
             )}
           </div>
+
+            <div className="relative flex-1 min-w-[150px] md:flex-none">
+              <select 
+                value={filterTag}
+                onChange={(e) => setFilterTag(e.target.value)}
+                className={cn(
+                  "px-4 py-2 rounded-xl border text-xs focus:ring-2 focus:ring-brand/50 outline-none transition-all w-full md:w-32",
+                  theme === 'dark' ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"
+                )}
+              >
+                <option value="all">All Tags</option>
+                {allTags.map(tag => (
+                  <option key={tag.id} value={tag.id}>{tag.name}</option>
+                ))}
+              </select>
+            </div>
 
             <div className="relative flex-1 min-w-[150px] md:flex-none">
               <select 
@@ -274,6 +318,14 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                   <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
                     {new Date(item.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                   </span>
+                  {(urlTags[item.id] || []).map(tag => (
+                    <span key={tag.id} className={cn(
+                      "px-1.5 py-0.5 rounded-md text-[9px] font-bold",
+                      theme === 'dark' ? "bg-white/10 text-gray-300" : "bg-gray-100 text-gray-600"
+                    )}>
+                      {tag.name}
+                    </span>
+                  ))}
                 </div>
               </div>
 
@@ -322,6 +374,16 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                           <ChevronDown size={16} className={cn("transition-transform duration-300", expandedBulkId === item.id && "rotate-180")} />
                         </button>
                       )}
+                      <button
+                        onClick={() => openEditModal(item)}
+                        className={cn(
+                          "p-2 rounded-lg transition-all",
+                          theme === 'dark' ? "hover:bg-white/10 text-gray-400 hover:text-white" : "hover:bg-white text-gray-500 hover:text-gray-900 shadow-sm"
+                        )}
+                        title="Edit"
+                      >
+                        <Edit2 size={16} />
+                      </button>
                       <button
                         onClick={() => openQrModal(item.shortUrl)}
                         className={cn(
