@@ -13,9 +13,10 @@ interface TeamDashboardProps {
   teamId: string;
   theme: 'light' | 'dark';
   isOwner: boolean;
+  isAdmin: boolean;
 }
 
-export const TeamDashboard: React.FC<TeamDashboardProps> = ({ teamId, theme, isOwner }) => {
+export const TeamDashboard: React.FC<TeamDashboardProps> = ({ teamId, theme, isOwner, isAdmin }) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -40,7 +41,7 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({ teamId, theme, isO
 
   return (
     <div className="space-y-6">
-      <TeamManagement teamId={teamId} theme={theme} isOwner={isOwner} />
+      <TeamManagement teamId={teamId} theme={theme} isOwner={isOwner} isAdmin={isAdmin} />
 
       <div className={cn(
         "p-6 rounded-2xl border",

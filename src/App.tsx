@@ -22,14 +22,12 @@ import { ProfileView } from './components/ProfileView';
 
 import { LinkDetailsModal } from './components/LinkDetailsModal';
 import { PaymentModal } from './components/PaymentModal';
-import { TeamDashboard } from './components/TeamDashboard';
 import { AdminView } from './components/AdminView';
 import { SupportView } from './components/SupportView';
 import { TasksView } from './components/TasksView';
 import { QrCodeModal } from './components/QrCodeModal';
 import { ClearHistoryModal } from './components/ClearHistoryModal';
-import { TagManager } from './components/TagManager';
-import { Domain, HistoryItem, ApiKey, User, Tag } from './types';
+import { Domain, HistoryItem, ApiKey, User } from './types';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -44,12 +42,11 @@ interface ErrorBoundaryState {
 }
 
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  state: ErrorBoundaryState = { hasError: false };
+
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false };
   }
-
-  state: ErrorBoundaryState = { hasError: false };
 
   static getDerivedStateFromError(_error: any) {
     return { hasError: true };
@@ -142,29 +139,7 @@ function AppContent() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
-  const [userTeams, setUserTeams] = useState<any[]>([]);
   const [selectedLink, setSelectedLink] = useState<any | null>(null);
-  const [allTags, setAllTags] = useState<Tag[]>([]);
-  const fetchTags = async () => {
-    try {
-      const tags = await apiClient('/api/tags');
-      setAllTags(tags);
-    } catch (error) {
-      console.error('Failed to fetch tags', error);
-    }
-  };
-  useEffect(() => {
-    fetchTags();
-    const fetchTeams = async () => {
-      try {
-        const teams = await apiClient('/api/teams');
-        setUserTeams(teams);
-      } catch (error) {
-        console.error('Failed to fetch teams', error);
-      }
-    };
-    fetchTeams();
-  }, []);
   const [isClearHistoryModalOpen, setIsClearHistoryModalOpen] = useState(false);
   const [expiresAt, setExpiresAt] = useState('');
   const [hasError, setHasError] = useState(false);
@@ -211,7 +186,7 @@ function AppContent() {
   }, [customErrorMessages]);
   
   // Analytics state
-  const [view, setView] = useState<'home' | 'analytics' | 'profile' | 'admin' | 'tasks' | 'domains' | 'api-keys' | 'team'>('home');
+  const [view, setView] = useState<'home' | 'analytics' | 'profile' | 'admin' | 'tasks' | 'domains' | 'api-keys'>('home');
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
   
@@ -1752,24 +1727,6 @@ function AppContent() {
             setView={setView}
             onRefresh={fetchAnalytics}
           />
-        ) : view === 'team' ? (
-          <div className="space-y-6">
-            <h1 className="text-3xl font-display font-bold mb-2">Team Dashboard</h1>
-            {userTeams.length > 0 ? (
-              <TeamDashboard 
-                teamId={userTeams[0].id} 
-                theme={theme} 
-                isOwner={userTeams[0].ownerId === user?.id} 
-              />
-            ) : (
-              <p>No team found.</p>
-            )}
-          </div>
-        ) : view === 'tags' ? (
-          <div className="space-y-6">
-            <h1 className="text-3xl font-display font-bold mb-2">Tags</h1>
-            <TagManager tags={allTags} theme={theme} onUpdate={fetchTags} />
-          </div>
         ) : view === 'domains' ? (
           <div className="space-y-6">
             <div className="flex items-center justify-between">

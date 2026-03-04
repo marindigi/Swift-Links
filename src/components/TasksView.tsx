@@ -123,7 +123,7 @@ export const TasksView: React.FC<TasksViewProps> = ({ theme, user, onUpgrade }) 
         theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-gray-100 shadow-gray-200/50"
       )}>
         <form onSubmit={handleCreateTask} className="flex flex-col gap-4">
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <input
               type="text"
               placeholder="Add a new note..."
@@ -139,15 +139,15 @@ export const TasksView: React.FC<TasksViewProps> = ({ theme, user, onUpgrade }) 
             <button
               type="submit"
               disabled={isCreating || !newTaskTitle.trim()}
-              className="px-6 py-3 bg-brand text-white font-bold rounded-xl hover:bg-brand-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-6 py-3 bg-brand text-white font-bold rounded-xl hover:bg-brand-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shrink-0"
             >
               {isCreating ? <Clock size={20} className="animate-spin" /> : <Plus size={20} />}
               <span>Add</span>
             </button>
           </div>
           
-          <div className="flex items-center gap-2">
-            <div className="relative group">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+            <div className="relative group w-full sm:w-auto">
               <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
                 <Calendar className="text-gray-400" size={16} />
               </div>
@@ -156,7 +156,7 @@ export const TasksView: React.FC<TasksViewProps> = ({ theme, user, onUpgrade }) 
                 value={newTaskDueDate}
                 onChange={(e) => setNewTaskDueDate(e.target.value)}
                 className={cn(
-                  "pl-10 pr-4 py-2 rounded-xl border text-xs font-bold uppercase tracking-wider outline-none transition-all cursor-pointer",
+                  "w-full sm:w-auto pl-10 pr-4 py-2 rounded-xl border text-xs font-bold uppercase tracking-wider outline-none transition-all cursor-pointer",
                   theme === 'dark' 
                     ? "bg-white/5 border-white/10 text-gray-400 focus:text-white focus:border-brand/50" 
                     : "bg-gray-50 border-gray-200 text-gray-500 focus:text-gray-900 focus:border-brand/50"
@@ -167,7 +167,7 @@ export const TasksView: React.FC<TasksViewProps> = ({ theme, user, onUpgrade }) 
               <button
                 type="button"
                 onClick={() => setNewTaskDueDate('')}
-                className="text-xs text-gray-500 hover:text-red-500 transition-colors"
+                className="text-xs text-gray-500 hover:text-red-500 transition-colors mt-2 sm:mt-0"
               >
                 Clear date
               </button>
@@ -239,7 +239,7 @@ export const TasksView: React.FC<TasksViewProps> = ({ theme, user, onUpgrade }) 
               <button
                 onClick={() => handleDeleteTask(task.id)}
                 className={cn(
-                  "p-2 rounded-xl opacity-0 group-hover:opacity-100 transition-all",
+                  "p-2 rounded-xl opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all",
                   theme === 'dark' ? "hover:bg-red-500/20 text-gray-400 hover:text-red-400" : "hover:bg-red-50 text-gray-400 hover:text-red-600"
                 )}
               >

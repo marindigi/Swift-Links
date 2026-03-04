@@ -182,6 +182,9 @@ try {
 try {
   db.exec("ALTER TABLE users ADD COLUMN notify_plan_expiry BOOLEAN DEFAULT 1");
 } catch (e) {}
+try {
+  db.exec("ALTER TABLE tasks ADD COLUMN notified BOOLEAN DEFAULT 0");
+} catch (e) {}
 
 // Promote specific user to admin
 const adminEmail = process.env.ADMIN_EMAIL || "mcs.marinroeun@gmail.com";
@@ -189,6 +192,43 @@ const adminUser = db.prepare("SELECT * FROM users WHERE email = ?").get(adminEma
 if (adminUser) {
   db.prepare("UPDATE users SET role = 'admin', plan = 'enterprise' WHERE email = ?").run(adminEmail);
 }
+
+// Cron job for task reminders
+cron.schedule('0 * * * *', async () => { // Every hour
+  console.log('Running task reminder job...');
+  const now = new Date();
+  const twentyFourHoursLater = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  
+  const tasksDue = db.prepare(`
+    SELECT t.*, u.email, u.name 
+    FROM tasks t 
+    JOIN users u ON t.userId = u.id 
+    WHERE t.dueDate IS NOT NULL 
+    AND t.dueDate > ? 
+    AND t.dueDate < ? 
+    AND t.completed = 0 
+    AND (t.notified = 0 OR t.notified IS NULL)
+  `).all(now.toISOString(), twentyFourHoursLater.toISOString()) as any[];
+
+  for (const task of tasksDue) {
+    if (task.email) {
+      const subject = `Reminder: ${task.title} is due soon`;
+      const html = getEmailTemplate(
+        'Task Reminder',
+        `<p>Hi ${task.name || 'there'},</p>
+         <p>This is a reminder that your task <strong>"${task.title}"</strong> is due on ${new Date(task.dueDate).toLocaleString()}.</p>
+         <p>Please make sure to complete it on time.</p>`,
+        'View Tasks',
+        `${process.env.APP_URL}/tasks`
+      );
+      
+      await sendEmail(task.email, subject, html);
+      
+      // Mark as notified
+      db.prepare('UPDATE tasks SET notified = 1 WHERE id = ?').run(task.id);
+    }
+  }
+});
 
 // Create tasks table
 db.exec(`
@@ -199,6 +239,7 @@ db.exec(`
     description TEXT,
     completed BOOLEAN DEFAULT 0,
     dueDate DATETIME,
+    notified BOOLEAN DEFAULT 0,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(userId) REFERENCES users(id)
   );
@@ -253,12 +294,10 @@ db.exec(`
     domainId TEXT,
     domainName TEXT,
     userId TEXT,
-    teamId TEXT,
     clicks INTEGER DEFAULT 0,
     expiresAt DATETIME,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(userId) REFERENCES users(id),
-    FOREIGN KEY(teamId) REFERENCES teams(id)
+    FOREIGN KEY(userId) REFERENCES users(id)
   );
 
   CREATE TABLE IF NOT EXISTS domains (
@@ -267,24 +306,6 @@ db.exec(`
     userId TEXT,
     status TEXT DEFAULT 'pending',
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(userId) REFERENCES users(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS teams (
-    id TEXT PRIMARY KEY,
-    name TEXT,
-    ownerId TEXT,
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(ownerId) REFERENCES users(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS team_members (
-    teamId TEXT,
-    userId TEXT,
-    role TEXT DEFAULT 'member',
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY(teamId, userId),
-    FOREIGN KEY(teamId) REFERENCES teams(id),
     FOREIGN KEY(userId) REFERENCES users(id)
   );
 
@@ -378,21 +399,6 @@ db.exec(`
     apiKey TEXT PRIMARY KEY,
     count INTEGER DEFAULT 0,
     resetAt DATETIME
-  );
-
-  CREATE TABLE IF NOT EXISTS tags (
-    id TEXT PRIMARY KEY,
-    name TEXT UNIQUE,
-    userId TEXT,
-    FOREIGN KEY(userId) REFERENCES users(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS url_tags (
-    urlId TEXT,
-    tagId TEXT,
-    PRIMARY KEY(urlId, tagId),
-    FOREIGN KEY(urlId) REFERENCES urls(id),
-    FOREIGN KEY(tagId) REFERENCES tags(id)
   );
 `);
 
@@ -942,200 +948,32 @@ async function startServer() {
 
   // URL Management APIs
   app.get("/api/urls", authenticate, (req: any, res) => {
-    const urls = db.prepare(`
-      SELECT u.* FROM urls u
-      LEFT JOIN team_members tm ON u.teamId = tm.teamId AND tm.userId = ?
-      WHERE u.userId = ? OR tm.userId = ?
-      ORDER BY u.createdAt DESC
-    `).all(req.user.uid, req.user.uid, req.user.uid);
+    const urls = db.prepare("SELECT * FROM urls WHERE userId = ? ORDER BY createdAt DESC").all(req.user.uid);
     res.json(urls);
   });
 
   app.delete("/api/urls/:id", authenticate, (req: any, res) => {
-    const result = db.prepare(`
-      DELETE FROM urls WHERE id = ? AND (
-        userId = ? OR teamId IN (SELECT teamId FROM team_members WHERE userId = ? AND role IN ('admin', 'owner'))
-      )
-    `).run(req.params.id, req.user.uid, req.user.uid);
+    const result = db.prepare("DELETE FROM urls WHERE id = ? AND userId = ?").run(req.params.id, req.user.uid);
     if (result.changes === 0) {
-      return res.status(404).json({ error: "URL not found or unauthorized" });
+      return res.status(404).json({ error: "URL not found" });
     }
     res.json({ success: true });
   });
 
   app.put("/api/urls/:id", authenticate, (req: any, res) => {
     const { originalUrl, expiresAt } = req.body;
-    const result = db.prepare(`
-      UPDATE urls SET originalUrl = ?, expiresAt = ? WHERE id = ? AND (
-        userId = ? OR teamId IN (SELECT teamId FROM team_members WHERE userId = ?)
-      )
-    `).run(originalUrl, expiresAt, req.params.id, req.user.uid, req.user.uid);
+    const result = db.prepare("UPDATE urls SET originalUrl = ?, expiresAt = ? WHERE id = ? AND userId = ?")
+      .run(originalUrl, expiresAt, req.params.id, req.user.uid);
     if (result.changes === 0) {
-      return res.status(404).json({ error: "URL not found or unauthorized" });
+      return res.status(404).json({ error: "URL not found" });
     }
     res.json({ success: true });
   });
 
-  // Tag Management APIs
-  app.get("/api/tags", authenticate, (req: any, res) => {
-    const tags = db.prepare("SELECT * FROM tags WHERE userId = ?").all(req.user.uid);
-    res.json(tags);
-  });
-
-  app.put("/api/tags/:tagId", authenticate, (req: any, res) => {
-    const { tagId } = req.params;
-    const { name } = req.body;
-    const result = db.prepare("UPDATE tags SET name = ? WHERE id = ? AND userId = ?").run(name, tagId, req.user.uid);
-    if (result.changes === 0) return res.status(404).json({ error: "Tag not found or unauthorized" });
-    res.json({ success: true });
-  });
-
-  app.delete("/api/tags/:tagId", authenticate, (req: any, res) => {
-    const { tagId } = req.params;
-    db.prepare("DELETE FROM url_tags WHERE tagId = ?").run(tagId);
-    const result = db.prepare("DELETE FROM tags WHERE id = ? AND userId = ?").run(tagId, req.user.uid);
-    if (result.changes === 0) return res.status(404).json({ error: "Tag not found or unauthorized" });
-    res.json({ success: true });
-  });
-
-  app.get("/api/urls/:urlId/tags", authenticate, (req: any, res) => {
-    const { urlId } = req.params;
-    // Check if user has access to URL
-    const url = db.prepare(`
-      SELECT id FROM urls WHERE id = ? AND (
-        userId = ? OR teamId IN (SELECT teamId FROM team_members WHERE userId = ?)
-      )
-    `).get(urlId, req.user.uid, req.user.uid);
-    if (!url) return res.status(404).json({ error: "URL not found or unauthorized" });
-
-    const tags = db.prepare("SELECT t.* FROM tags t JOIN url_tags ut ON t.id = ut.tagId WHERE ut.urlId = ?").all(urlId);
-    res.json(tags);
-  });
-
-  app.post("/api/urls/:urlId/tags", authenticate, (req: any, res) => {
-    const { tagName } = req.body;
-    const { urlId } = req.params;
-    
-    // Check if user has access to URL
-    const url = db.prepare(`
-      SELECT id FROM urls WHERE id = ? AND (
-        userId = ? OR teamId IN (SELECT teamId FROM team_members WHERE userId = ?)
-      )
-    `).get(urlId, req.user.uid, req.user.uid);
-    if (!url) return res.status(404).json({ error: "URL not found or unauthorized" });
-
-    let tag = db.prepare("SELECT * FROM tags WHERE name = ? AND userId = ?").get(tagName, req.user.uid) as any;
-    if (!tag) {
-      const tagId = nanoid();
-      db.prepare("INSERT INTO tags (id, name, userId) VALUES (?, ?, ?)").run(tagId, tagName, req.user.uid);
-      tag = { id: tagId, name: tagName };
-    }
-
-    try {
-      db.prepare("INSERT INTO url_tags (urlId, tagId) VALUES (?, ?)").run(urlId, tag.id);
-      res.json({ success: true, tag });
-    } catch (e) {
-      res.status(400).json({ error: "Tag already added to this URL" });
-    }
-  });
-
-  app.delete("/api/urls/:urlId/tags/:tagId", authenticate, (req: any, res) => {
-    const { urlId, tagId } = req.params;
-    
-    // Check if user has access to URL
-    const url = db.prepare(`
-      SELECT id FROM urls WHERE id = ? AND (
-        userId = ? OR teamId IN (SELECT teamId FROM team_members WHERE userId = ?)
-      )
-    `).get(urlId, req.user.uid, req.user.uid);
-    if (!url) return res.status(404).json({ error: "URL not found or unauthorized" });
-
-    db.prepare("DELETE FROM url_tags WHERE urlId = ? AND tagId = ?").run(urlId, tagId);
-    res.json({ success: true });
-  });
-
-  app.post("/api/teams", authenticate, (req: any, res) => {
-    const { name } = req.body;
-    const teamId = nanoid();
-    db.prepare("INSERT INTO teams (id, name, ownerId) VALUES (?, ?, ?)").run(teamId, name, req.user.uid);
-    db.prepare("INSERT INTO team_members (teamId, userId, role) VALUES (?, ?, ?)").run(teamId, req.user.uid, 'owner');
-    res.json({ id: teamId, name, ownerId: req.user.uid });
-  });
-
-  app.get("/api/teams/:teamId", authenticate, (req: any, res) => {
-    const { teamId } = req.params;
-    const team = db.prepare("SELECT * FROM teams WHERE id = ?").get(teamId);
-    if (!team) return res.status(404).json({ error: "Team not found" });
-    res.json(team);
-  });
-
-  app.get("/api/teams/:teamId/members", authenticate, (req: any, res) => {
-    const { teamId } = req.params;
-    const members = db.prepare("SELECT tm.*, u.email FROM team_members tm JOIN users u ON tm.userId = u.id WHERE tm.teamId = ?").all(teamId);
-    res.json(members);
-  });
-
-  app.put("/api/teams/:teamId/members/:userId", authenticate, (req: any, res) => {
-    const { teamId, userId } = req.params;
-    const { role } = req.body;
-    // Check if user is owner or admin
-    const member = db.prepare("SELECT role FROM team_members WHERE teamId = ? AND userId = ?").get(teamId, req.user.uid) as any;
-    const team = db.prepare("SELECT * FROM teams WHERE id = ? AND ownerId = ?").get(teamId, req.user.uid);
-    if (!team && (!member || member.role !== 'admin')) return res.status(403).json({ error: "Unauthorized" });
-    
-    db.prepare("UPDATE team_members SET role = ? WHERE teamId = ? AND userId = ?").run(role, teamId, userId);
-    res.json({ success: true });
-  });
-
-  app.delete("/api/teams/:teamId/members/:userId", authenticate, (req: any, res) => {
-    const { teamId, userId } = req.params;
-    // Check if user is owner or admin
-    const member = db.prepare("SELECT role FROM team_members WHERE teamId = ? AND userId = ?").get(teamId, req.user.uid) as any;
-    const team = db.prepare("SELECT * FROM teams WHERE id = ? AND ownerId = ?").get(teamId, req.user.uid);
-    if (!team && (!member || member.role !== 'admin')) return res.status(403).json({ error: "Unauthorized" });
-    
-    db.prepare("DELETE FROM team_members WHERE teamId = ? AND userId = ?").run(teamId, userId);
-    res.json({ success: true });
-  });
-
-  app.post("/api/teams/:teamId/invite", authenticate, (req: any, res) => {
-    const { email, role } = req.body;
-    const { teamId } = req.params;
-    
-    // Check if user is owner or admin
-    const member = db.prepare("SELECT role FROM team_members WHERE teamId = ? AND userId = ?").get(teamId, req.user.uid) as any;
-    const team = db.prepare("SELECT * FROM teams WHERE id = ? AND ownerId = ?").get(teamId, req.user.uid);
-    if (!team && (!member || member.role !== 'admin')) return res.status(403).json({ error: "Unauthorized" });
-    
-    const user = db.prepare("SELECT id FROM users WHERE email = ?").get(email) as any;
-    if (!user) return res.status(404).json({ error: "User not found" });
-    
-    try {
-      db.prepare("INSERT INTO team_members (teamId, userId, role) VALUES (?, ?, ?)").run(teamId, user.id, role || 'member');
-      res.json({ success: true });
-    } catch (e) {
-      res.status(400).json({ error: "User already in team" });
-    }
-  });
-
-  app.get("/api/teams/:teamId/analytics", authenticate, (req: any, res) => {
-    const { teamId } = req.params;
-    
-    // Check if user is member of team
-    const member = db.prepare("SELECT * FROM team_members WHERE teamId = ? AND userId = ?").get(teamId, req.user.uid);
-    if (!member) {
-      return res.status(403).json({ error: "Unauthorized" });
-    }
-
-    const totalClicks = db.prepare("SELECT COUNT(*) as count FROM clicks c JOIN urls u ON c.urlId = u.id WHERE u.teamId = ?").get(teamId) as any;
-    const topLinks = db.prepare("SELECT u.shortUrl, COUNT(c.id) as clickCount FROM clicks c JOIN urls u ON c.urlId = u.id WHERE u.teamId = ? GROUP BY u.id ORDER BY clickCount DESC LIMIT 5").all(teamId);
-    const geoDistribution = db.prepare("SELECT country, COUNT(*) as count FROM clicks c JOIN urls u ON c.urlId = u.id WHERE u.teamId = ? GROUP BY country").all(teamId);
-
-    res.json({
-      totalClicks: totalClicks.count,
-      topLinks,
-      geoDistribution
-    });
+  // Domain Management APIs
+  app.get("/api/domains", (_req, res) => {
+    const domains = db.prepare("SELECT * FROM domains ORDER BY createdAt DESC").all();
+    res.json(domains);
   });
 
 // Plan Limits

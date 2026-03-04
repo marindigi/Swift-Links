@@ -162,7 +162,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
   return (
     <div className="w-full max-w-4xl space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex items-center gap-4 mb-8 justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-8 justify-between">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-2xl overflow-hidden bg-brand/10 border-2 border-brand/20 shrink-0 shadow-lg shadow-brand/10">
             <img 
@@ -173,8 +173,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             />
           </div>
           <div>
-            <div className="flex items-center gap-3">
-              <h2 className="text-3xl font-display font-bold">{name || 'Account Settings'}</h2>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <h2 className="text-2xl sm:text-3xl font-display font-bold">{name || 'Account Settings'}</h2>
               <span className={cn(
                 "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
                 user?.status === 'inactive' 
@@ -184,13 +184,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 {user?.status || 'active'}
               </span>
             </div>
-            <p className="text-gray-500">{email}</p>
+            <p className="text-sm sm:text-base text-gray-500">{email}</p>
           </div>
         </div>
         <button 
           onClick={onLogout}
           className={cn(
-            "px-4 py-2 rounded-xl border transition-all flex items-center gap-2 text-sm font-bold",
+            "w-full sm:w-auto px-4 py-2 rounded-xl border transition-all flex items-center justify-center gap-2 text-sm font-bold",
             theme === 'dark' ? "bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10" : "bg-white border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50"
           )}
         >
@@ -208,7 +208,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             <Sparkles size={20} className="text-brand" />
             Subscription Plan
           </h3>
-          <div className="flex items-center justify-between p-4 rounded-2xl bg-brand/5 border border-brand/10 mb-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-2xl bg-brand/5 border border-brand/10 mb-6">
             <div>
               <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Current Plan</p>
               <p className="text-xl font-bold text-brand capitalize">{user?.plan || 'Free'}</p>
@@ -219,11 +219,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 </div>
               )}
             </div>
-            <div className="flex flex-col items-end gap-2">
+            <div className="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto">
               <button 
                 onClick={onUpgrade}
                 disabled={!!user?.pendingPlan}
-                className="px-6 py-2 bg-brand text-white rounded-xl font-bold hover:bg-brand-hover transition-all shadow-lg shadow-brand/20 disabled:opacity-50"
+                className="w-full sm:w-auto px-6 py-2 bg-brand text-white rounded-xl font-bold hover:bg-brand-hover transition-all shadow-lg shadow-brand/20 disabled:opacity-50"
               >
                 {user?.pendingPlan ? 'Waiting for Admin' : 'Upgrade Plan'}
               </button>

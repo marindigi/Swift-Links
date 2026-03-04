@@ -12,9 +12,10 @@ interface TeamManagementProps {
   teamId: string;
   theme: 'light' | 'dark';
   isOwner: boolean;
+  isAdmin: boolean;
 }
 
-export const TeamManagement: React.FC<TeamManagementProps> = ({ teamId, theme, isOwner }) => {
+export const TeamManagement: React.FC<TeamManagementProps> = ({ teamId, theme, isOwner, isAdmin }) => {
   const [members, setMembers] = useState<any[]>([]);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('member');
@@ -64,7 +65,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ teamId, theme, i
     )}>
       <h2 className="text-xl font-bold mb-4">Team Members</h2>
       
-      {isOwner && (
+      {(isOwner || isAdmin) && (
         <div className="flex gap-2 mb-6">
           <input
             type="email"
@@ -94,7 +95,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ teamId, theme, i
           <div key={member.userId} className="flex items-center justify-between p-3 rounded-xl bg-white/5">
             <span>{member.email}</span>
             <div className="flex items-center gap-2">
-              {isOwner && member.role !== 'owner' ? (
+              {(isOwner || isAdmin) && member.role !== 'owner' ? (
                 <>
                   <select value={member.role} onChange={(e) => updateRole(member.userId, e.target.value)} className={cn(
                     "p-1 rounded-lg border",

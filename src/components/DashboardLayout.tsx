@@ -1,5 +1,5 @@
-import React from 'react';
-import { Link2, BarChart2, Sparkles, Globe, Key, Shield, User as UserIcon, LogOut, Sun, Moon, MessageSquare, Tag } from 'lucide-react';
+import React, { useState } from 'react';
+import { Link2, BarChart2, Sparkles, Globe, Key, Shield, User as UserIcon, LogOut, Sun, Moon, MessageSquare, Menu, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { User } from '../types';
 import { ExpirationBanner } from './ExpirationBanner';
@@ -25,6 +25,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   onLogout,
   onFetchAnalytics
 }) => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const handleNavClick = (newView: string) => {
+    setView(newView);
+    setIsMobileMenuOpen(false);
+  };
+
   return (
     <div className={cn(
       "min-h-screen transition-colors duration-500 selection:bg-brand/30 font-sans overflow-x-hidden relative",
@@ -109,18 +116,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           >
             <MessageSquare size={18} />
             <span>Support</span>
-          </button>
-          <button
-            onClick={() => setView('tags')}
-            className={cn(
-              "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
-              view === 'tags' 
-                ? "bg-brand text-white shadow-lg shadow-brand/20" 
-                : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
-            )}
-          >
-            <Tag size={18} />
-            <span>Tags</span>
           </button>
           <div className="py-4">
             <div className="h-px bg-gray-200 dark:bg-white/5 mx-4" />
@@ -250,6 +245,15 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       )}>
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 lg:hidden">
+            <button
+              onClick={() => setIsMobileMenuOpen(true)}
+              className={cn(
+                "p-2 -ml-2 rounded-xl transition-all",
+                theme === 'dark' ? "hover:bg-white/10 text-gray-400" : "hover:bg-gray-100 text-gray-600"
+              )}
+            >
+              <Menu size={20} />
+            </button>
             <div className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center text-white shadow-lg shadow-brand/20">
               <Link2 size={18} />
             </div>
@@ -301,6 +305,158 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </div>
         </div>
       </header>
+
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-[100] lg:hidden">
+          <div 
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+          <div className={cn(
+            "absolute top-0 left-0 bottom-0 w-72 p-6 flex flex-col transition-transform duration-300 transform",
+            theme === 'dark' ? "bg-[#050505] border-r border-white/5" : "bg-white border-r border-gray-200"
+          )}>
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-brand rounded-xl flex items-center justify-center text-white shadow-lg shadow-brand/20">
+                  <Link2 size={22} />
+                </div>
+                <span className="font-display font-bold text-xl tracking-tight">Cutly</span>
+              </div>
+              <button 
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={cn(
+                  "p-2 rounded-xl transition-all",
+                  theme === 'dark' ? "hover:bg-white/10 text-gray-400" : "hover:bg-gray-100 text-gray-600"
+                )}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <nav className="flex-1 space-y-1.5 overflow-y-auto custom-scrollbar">
+              <button
+                onClick={() => handleNavClick('home')}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
+                  view === 'home' 
+                    ? "bg-brand text-white shadow-lg shadow-brand/20" 
+                    : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                )}
+              >
+                <Link2 size={18} />
+                <span>Dashboard</span>
+              </button>
+              <button
+                onClick={() => {
+                  onFetchAnalytics();
+                  handleNavClick('analytics');
+                }}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
+                  view === 'analytics' 
+                    ? "bg-brand text-white shadow-lg shadow-brand/20" 
+                    : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                )}
+              >
+                <BarChart2 size={18} />
+                <span>Analytics</span>
+              </button>
+              <button
+                onClick={() => handleNavClick('tasks')}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
+                  view === 'tasks' 
+                    ? "bg-brand text-white shadow-lg shadow-brand/20" 
+                    : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                )}
+              >
+                <Sparkles size={18} />
+                <span>Tasks</span>
+              </button>
+              <button
+                onClick={() => handleNavClick('support')}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
+                  view === 'support' 
+                    ? "bg-brand text-white shadow-lg shadow-brand/20" 
+                    : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                )}
+              >
+                <MessageSquare size={18} />
+                <span>Support</span>
+              </button>
+              <div className="py-4">
+                <div className="h-px bg-gray-200 dark:bg-white/5 mx-4" />
+              </div>
+              <button
+                onClick={() => handleNavClick('domains')}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
+                  view === 'domains' 
+                    ? "bg-brand text-white shadow-lg shadow-brand/20" 
+                    : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                )}
+              >
+                <Globe size={18} />
+                <span>Custom Domains</span>
+              </button>
+              <button
+                onClick={() => handleNavClick('api-keys')}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
+                  view === 'api-keys' 
+                    ? "bg-brand text-white shadow-lg shadow-brand/20" 
+                    : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                )}
+              >
+                <Key size={18} />
+                <span>API Keys</span>
+              </button>
+              {user?.role === 'admin' && (
+                <button
+                  onClick={() => handleNavClick('admin')}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
+                    view === 'admin' 
+                      ? "bg-brand text-white shadow-lg shadow-brand/20" 
+                      : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                  )}
+                >
+                  <Shield size={18} />
+                  <span>Admin Panel</span>
+                </button>
+              )}
+            </nav>
+
+            <div className="pt-4 space-y-2 border-t border-gray-200 dark:border-white/5 mt-auto">
+              <button
+                onClick={() => handleNavClick('profile')}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
+                  view === 'profile' 
+                    ? "bg-brand text-white shadow-lg shadow-brand/20" 
+                    : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                )}
+              >
+                <UserIcon size={18} />
+                <span>Profile</span>
+              </button>
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  onLogout();
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
+              >
+                <LogOut size={18} />
+                <span>Sign Out</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className={cn(

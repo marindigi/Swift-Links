@@ -252,10 +252,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                 theme === 'dark' ? "bg-gradient-to-r from-indigo-500 to-violet-500" : "bg-gradient-to-r from-indigo-400 to-violet-400"
               )}></div>
               <div className={cn(
-                "relative flex items-center p-2 rounded-2xl border shadow-xl transition-all",
+                "relative flex flex-col sm:flex-row items-stretch sm:items-center p-2 rounded-2xl border shadow-xl transition-all gap-2 sm:gap-0",
                 theme === 'dark' ? "bg-[#111] border-white/10" : "bg-white border-gray-200"
               )}>
-                <div className="pl-4 text-gray-400">
+                <div className="hidden sm:block pl-4 text-gray-400">
                   <Link2 size={24} />
                 </div>
                 <input
@@ -264,11 +264,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                   value={mockUrl}
                   onChange={(e) => setMockUrl(e.target.value)}
                   placeholder="Paste your long link here..."
-                  className="w-full bg-transparent border-none outline-none px-4 py-4 text-lg placeholder-gray-400/70"
+                  className="w-full bg-transparent border-none outline-none px-4 py-3 sm:py-4 text-base sm:text-lg placeholder-gray-400/70"
                 />
                 <button
                   type="submit"
-                  className="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all shadow-md flex items-center gap-2 whitespace-nowrap"
+                  className="px-6 sm:px-8 py-3 sm:py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 whitespace-nowrap w-full sm:w-auto"
                 >
                   Shorten <ArrowRight size={18} />
                 </button>
@@ -663,7 +663,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
               
               <div className="flex animate-marquee whitespace-nowrap gap-16 items-center pr-16 opacity-50 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500">
                 {[...Array(2)].map((_, i) => (
-                  <React.Fragment key={`marquee1-${i}`}>
+                  <React.Fragment key={i}>
                     <GoogleLogo />
                     <MicrosoftLogo />
                     <SpotifyLogo />
@@ -678,7 +678,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
               </div>
               <div className="flex absolute top-0 left-0 animate-marquee2 whitespace-nowrap gap-16 items-center pr-16 opacity-50 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500">
                 {[...Array(2)].map((_, i) => (
-                  <React.Fragment key={`marquee2-${i}`}>
+                  <React.Fragment key={i}>
                     <GoogleLogo />
                     <MicrosoftLogo />
                     <SpotifyLogo />

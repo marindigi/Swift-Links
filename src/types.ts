@@ -41,17 +41,6 @@ export interface ApiKey {
   createdAt: string;
 }
 
-export interface Tag {
-  id: string;
-  name: string;
-  userId: string;
-}
-
-export interface UrlTag {
-  urlId: string;
-  tagId: string;
-}
-
 export interface Task {
   id: string;
   title: string;
@@ -60,6 +49,7 @@ export interface Task {
   dueDate?: string | null;
   createdAt: string;
   userId: string;
+  notified?: boolean;
 }
 
 export interface LandingFeature {

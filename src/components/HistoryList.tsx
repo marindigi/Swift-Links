@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { History, Search, ArrowUpDown, Trash2, Copy, Share2, ExternalLink, X, Sparkles, ChevronDown, Download, QrCode, Clock, MousePointer2, Loader2, Edit2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { HistoryItem, Tag } from '../types';
-import { apiClient } from '../lib/api';
+import { HistoryItem } from '../types';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -33,9 +32,6 @@ export const HistoryList: React.FC<HistoryListProps> = ({
   const [historySearch, setHistorySearch] = useState('');
   const [filterExpiresAt, setFilterExpiresAt] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'individual' | 'bulk'>('all');
-  const [filterTag, setFilterTag] = useState<string>('all');
-  const [allTags, setAllTags] = useState<Tag[]>([]);
-  const [urlTags, setUrlTags] = useState<Record<string, Tag[]>>({});
   const [historySortBy, setHistorySortBy] = useState<'timestamp' | 'originalUrl' | 'shortUrl' | 'clicks'>('timestamp');
   const [historySortOrder, setHistorySortOrder] = useState<'asc' | 'desc'>('desc');
   const [confirmDeleteHistoryId, setConfirmDeleteHistoryId] = useState<string | null>(null);
@@ -43,34 +39,12 @@ export const HistoryList: React.FC<HistoryListProps> = ({
   const [bulkViewMode, setBulkViewMode] = useState<'url' | 'id'>('url');
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const tags = await apiClient('/api/tags');
-        setAllTags(tags);
-        
-        // Fetch all URL tags in one go if possible, or at least optimize
-        // For now, let's keep it simple but ensure we only fetch when history changes
-        const tagsMap: Record<string, Tag[]> = {};
-        await Promise.all(history.map(async (item) => {
-          const itemTags = await apiClient(`/api/urls/${item.id}/tags`);
-          tagsMap[item.id] = itemTags;
-        }));
-        setUrlTags(tagsMap);
-      } catch (error) {
-        console.error('Failed to fetch tags', error);
-      }
-    };
-    fetchData();
-  }, [history]);
-
   const filteredHistory = history
     .filter(item => 
       ((item.originalUrl || '').toLowerCase().includes(historySearch.toLowerCase()) ||
       (item.shortUrl || '').toLowerCase().includes(historySearch.toLowerCase())) &&
       (filterExpiresAt ? item.expiresAt?.startsWith(filterExpiresAt) : true) &&
-      (filterType === 'all' ? true : filterType === 'bulk' ? item.isBulk : !item.isBulk) &&
-      (filterTag === 'all' ? true : (urlTags[item.id] || []).some(t => t.id === filterTag))
+      (filterType === 'all' ? true : filterType === 'bulk' ? item.isBulk : !item.isBulk)
     )
     .sort((a, b) => {
       let comparison = 0;
@@ -133,22 +107,6 @@ export const HistoryList: React.FC<HistoryListProps> = ({
               </button>
             )}
           </div>
-
-            <div className="relative flex-1 min-w-[150px] md:flex-none">
-              <select 
-                value={filterTag}
-                onChange={(e) => setFilterTag(e.target.value)}
-                className={cn(
-                  "px-4 py-2 rounded-xl border text-xs focus:ring-2 focus:ring-brand/50 outline-none transition-all w-full md:w-32",
-                  theme === 'dark' ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"
-                )}
-              >
-                <option value="all">All Tags</option>
-                {allTags.map(tag => (
-                  <option key={tag.id} value={tag.id}>{tag.name}</option>
-                ))}
-              </select>
-            </div>
 
             <div className="relative flex-1 min-w-[150px] md:flex-none">
               <select 
@@ -266,9 +224,9 @@ export const HistoryList: React.FC<HistoryListProps> = ({
               expandedBulkId === item.id && (theme === 'dark' ? "bg-black/40 border-emerald-500/30" : "bg-emerald-50/30 border-emerald-200")
             )}
           >
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-3 mb-1">
+                <div className="flex flex-wrap items-center gap-3 mb-1">
                   <a 
                     href={item.shortUrl} 
                     target="_blank" 
@@ -280,7 +238,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                   >
                     {item.shortUrl?.replace ? item.shortUrl.replace(/^https?:\/\//, '') : item.shortUrl}
                   </a>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     {item.isBulk && (
                       <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand/10 border border-brand/20">
                         <Sparkles size={10} className="text-brand" />
@@ -310,27 +268,19 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <p className="text-[11px] text-gray-500 truncate max-w-md font-medium">
                     {item.originalUrl}
                   </p>
-                  <span className="text-[10px] text-gray-300 dark:text-gray-600">•</span>
+                  <span className="hidden sm:inline text-[10px] text-gray-300 dark:text-gray-600">•</span>
                   <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
                     {new Date(item.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                   </span>
-                  {(urlTags[item.id] || []).map(tag => (
-                    <span key={tag.id} className={cn(
-                      "px-1.5 py-0.5 rounded-md text-[9px] font-bold",
-                      theme === 'dark' ? "bg-white/10 text-gray-300" : "bg-gray-100 text-gray-600"
-                    )}>
-                      {tag.name}
-                    </span>
-                  ))}
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5">
-                <div className="flex items-center gap-1 p-1 rounded-xl bg-gray-100/50 dark:bg-white/5 border border-gray-200/50 dark:border-white/5 opacity-0 group-hover:opacity-100 transition-all duration-300">
+              <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl bg-gray-100/50 dark:bg-white/5 border border-gray-200/50 dark:border-white/5 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-300">
                   {confirmDeleteHistoryId === item.id ? (
                     <div className="flex items-center gap-1 px-1 animate-in fade-in slide-in-from-right-2">
                       <button 

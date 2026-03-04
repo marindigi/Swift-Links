@@ -159,7 +159,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   const countryData = Object.entries(countryDist)
     .map(([name, value]) => ({ name, value }))
     .sort((a: any, b: any) => b.value - a.value)
-    .slice(0, 7);
+    .slice(0, 5);
 
   // Distribution by Referrer
   const referrerDist = analyticsData.clicks.reduce((acc: any, click: any) => {
@@ -179,7 +179,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   const referrerData = Object.entries(referrerDist)
     .map(([name, value]) => ({ name, value }))
     .sort((a: any, b: any) => b.value - a.value)
-    .slice(0, 7);
+    .slice(0, 5);
 
   // Distribution by Browser
   const browserDist = analyticsData.clicks.reduce((acc: any, click: any) => {

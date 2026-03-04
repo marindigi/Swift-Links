@@ -302,8 +302,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
 
       {activeTab === 'users' ? (
         <>
-          <div className="flex items-center justify-between mb-6">
-            <div className="relative">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+            <div className="relative w-full sm:w-auto">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input 
                 type="text"
@@ -311,7 +311,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className={cn(
-                  "pl-10 pr-4 py-2 rounded-xl border outline-none focus:ring-2 focus:ring-brand/20 transition-all w-64",
+                  "pl-10 pr-4 py-2 rounded-xl border outline-none focus:ring-2 focus:ring-brand/20 transition-all w-full sm:w-64",
                   theme === 'dark' 
                     ? "bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-brand/50" 
                     : "bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-brand"
