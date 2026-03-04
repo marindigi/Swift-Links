@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link2, ArrowRight, Loader2, Sparkles, Globe, Twitter, Sun, Moon, X, User, BarChart2, Shield, Zap, Github, Check, MessageSquare, Mail, Lock, QrCode } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
+import { PasswordStrengthIndicator } from './PasswordStrengthIndicator';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -909,6 +910,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                       )}
                     />
                   </div>
+                )}
+                {isSignup && !isForgotPassword && (
+                  <PasswordStrengthIndicator password={password} theme={theme} />
                 )}
 
                 {!isForgotPassword && !isSignup && (

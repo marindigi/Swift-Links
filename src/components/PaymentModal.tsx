@@ -20,7 +20,7 @@ interface PaymentModalProps {
   theme: 'light' | 'dark';
 }
 
-export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, plan, theme }) => {
+export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onConfirm, plan, theme }) => {
   const [isSuccess] = useState(false);
 
   return (
@@ -119,22 +119,24 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, pla
                   </div>
                   
                   <h3 className={cn("text-2xl font-bold mb-4", theme === 'dark' ? "text-white" : "text-gray-900")}>
-                    Ready to Upgrade?
+                    Admin Activation Required
                   </h3>
                   
                   <p className="text-gray-500 mb-8 text-lg">
-                    To subscribe to the <span className="font-bold text-brand">{plan.name}</span> plan, please contact our admin on Telegram to process your payment.
+                    To activate the <span className="font-bold text-brand">{plan.name}</span> plan, please contact our admin on Telegram. Your account will be upgraded immediately after payment confirmation.
                   </p>
                   
-                  <a 
-                    href="https://t.me/roeunmarin" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
+                  <button 
+                    onClick={() => {
+                      window.open('https://t.me/roeunmarin', '_blank');
+                      if (onConfirm) onConfirm();
+                      onClose();
+                    }}
                     className="w-full py-4 rounded-2xl bg-[#0088cc] text-white font-bold hover:bg-[#0077b3] shadow-lg shadow-[#0088cc]/20 transition-all flex items-center justify-center gap-2"
                   >
                     Contact Admin on Telegram
                     <ArrowRight size={20} />
-                  </a>
+                  </button>
                   
                   <p className="mt-6 text-sm text-gray-400">
                     Admin Telegram: @roeunmarin

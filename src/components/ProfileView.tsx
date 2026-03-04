@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Settings, Sparkles, Loader2, Trash2, Palette, Key, LogOut, Link2, Globe, Bell } from 'lucide-react';
+import { Settings, Sparkles, Loader2, Trash2, Palette, Key, LogOut, Link2, Globe, CreditCard, CheckCircle, Plus, Bell } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { ApiKeyManager } from './ApiKeyManager';
 import { DeleteAccountModal } from './DeleteAccountModal';
+import { PasswordStrengthIndicator } from './PasswordStrengthIndicator';
 import { supabase } from '../supabaseClient';
 
 import { apiClient } from '../lib/api';
@@ -27,8 +28,6 @@ interface ProfileViewProps {
   apiKeys: any[];
   onGenerateApiKey: (name: string) => Promise<any>;
   onDeleteApiKey: (id: string) => Promise<void>;
-  customErrorMessages: Record<string, string>;
-  setCustomErrorMessages: (messages: Record<string, string>) => void;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({ 
@@ -43,19 +42,19 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onUpdate,
   apiKeys,
   onGenerateApiKey,
-  onDeleteApiKey,
-  customErrorMessages,
-  setCustomErrorMessages
+  onDeleteApiKey
 }) => {
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+  const [defaultMethodId, setDefaultMethodId] = useState<string | null>(null);
+  const [isLoadingMethods, setIsLoadingMethods] = useState(false);
   const [notifications, setNotifications] = useState({
     notify_link_created: true,
     notify_weekly_report: true,
@@ -64,8 +63,64 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [isUpdatingNotifications, setIsUpdatingNotifications] = useState(false);
 
   React.useEffect(() => {
+    fetchPaymentMethods();
     fetchNotificationSettings();
+    
+    // Check for payment setup success
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment_setup') === 'success') {
+      toast.success('Payment method added successfully');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   }, []);
+
+  const fetchPaymentMethods = async () => {
+    setIsLoadingMethods(true);
+    try {
+      const data = await apiClient('/api/payments/methods');
+      if (Array.isArray(data.methods)) {
+        const uniqueMethods = Array.from(new Map(data.methods.map((m: any) => [m.id, m])).values());
+        setPaymentMethods(uniqueMethods);
+      } else {
+        setPaymentMethods([]);
+      }
+      setDefaultMethodId(data.defaultMethodId);
+    } catch (error) {
+      console.error('Failed to fetch payment methods:', error);
+    } finally {
+      setIsLoadingMethods(false);
+    }
+  };
+
+  const handleSetDefault = async (methodId: string) => {
+    try {
+      await apiClient(`/api/payments/methods/${methodId}/default`, { method: 'POST' });
+      setDefaultMethodId(methodId);
+      toast.success('Default payment method updated');
+    } catch (error) {
+      toast.error('Failed to update default payment method');
+    }
+  };
+
+  const handleRemoveMethod = async (methodId: string) => {
+    try {
+      await apiClient(`/api/payments/methods/${methodId}`, { method: 'DELETE' });
+      setPaymentMethods(paymentMethods.filter(pm => pm.id !== methodId));
+      if (defaultMethodId === methodId) setDefaultMethodId(null);
+      toast.success('Payment method removed');
+    } catch (error) {
+      toast.error('Failed to remove payment method');
+    }
+  };
+
+  const handleAddMethod = async () => {
+    try {
+      const { url } = await apiClient('/api/payments/create-setup-session', { method: 'POST' });
+      window.location.href = url;
+    } catch (error) {
+      toast.error('Failed to initiate payment setup');
+    }
+  };
 
   const fetchNotificationSettings = async () => {
     try {
@@ -134,34 +189,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPassword) return;
-    if (newPassword !== confirmPassword) {
-      toast.error('New passwords do not match');
-      return;
-    }
-    if (!currentPassword) {
-      toast.error('Please enter your current password');
-      return;
-    }
-
     setIsChangingPassword(true);
     try {
-      // Verify current password by signing in
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user?.email || '',
-        password: currentPassword,
-      });
-
-      if (signInError) {
-        throw new Error('Incorrect current password');
-      }
-
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
 
       toast.success('Password changed successfully');
+      alert('Your password has been updated successfully.');
       setCurrentPassword('');
       setNewPassword('');
-      setConfirmPassword('');
     } catch (error: any) {
       toast.error(error.message || 'Failed to change password');
     } finally {
@@ -182,7 +218,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
   return (
     <div className="w-full max-w-4xl space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-8 justify-between">
+      <div className="flex items-center gap-4 mb-8 justify-between">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-2xl overflow-hidden bg-brand/10 border-2 border-brand/20 shrink-0 shadow-lg shadow-brand/10">
             <img 
@@ -193,8 +229,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             />
           </div>
           <div>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <h2 className="text-2xl sm:text-3xl font-display font-bold">{name || 'Account Settings'}</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-3xl font-display font-bold">{name || 'Account Settings'}</h2>
               <span className={cn(
                 "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
                 user?.status === 'inactive' 
@@ -204,13 +240,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 {user?.status || 'active'}
               </span>
             </div>
-            <p className="text-sm sm:text-base text-gray-500">{email}</p>
+            <p className="text-gray-500">{email}</p>
           </div>
         </div>
         <button 
           onClick={onLogout}
           className={cn(
-            "w-full sm:w-auto px-4 py-2 rounded-xl border transition-all flex items-center justify-center gap-2 text-sm font-bold",
+            "px-4 py-2 rounded-xl border transition-all flex items-center gap-2 text-sm font-bold",
             theme === 'dark' ? "bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10" : "bg-white border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50"
           )}
         >
@@ -228,7 +264,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             <Sparkles size={20} className="text-brand" />
             Subscription Plan
           </h3>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-2xl bg-brand/5 border border-brand/10 mb-6">
+          <div className="flex items-center justify-between p-4 rounded-2xl bg-brand/5 border border-brand/10 mb-6">
             <div>
               <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Current Plan</p>
               <p className="text-xl font-bold text-brand capitalize">{user?.plan || 'Free'}</p>
@@ -239,11 +275,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 </div>
               )}
             </div>
-            <div className="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto">
+            <div className="flex flex-col items-end gap-2">
               <button 
                 onClick={onUpgrade}
                 disabled={!!user?.pendingPlan}
-                className="w-full sm:w-auto px-6 py-2 bg-brand text-white rounded-xl font-bold hover:bg-brand-hover transition-all shadow-lg shadow-brand/20 disabled:opacity-50"
+                className="px-6 py-2 bg-brand text-white rounded-xl font-bold hover:bg-brand-hover transition-all shadow-lg shadow-brand/20 disabled:opacity-50"
               >
                 {user?.pendingPlan ? 'Waiting for Admin' : 'Upgrade Plan'}
               </button>
@@ -486,6 +522,89 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           "p-8 rounded-3xl border backdrop-blur-sm transition-all",
           theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-gray-200 shadow-sm"
         )}>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold flex items-center gap-2">
+              <CreditCard size={20} className="text-brand" />
+              Payment Methods
+            </h3>
+            <button 
+              onClick={handleAddMethod}
+              className="p-2 rounded-xl bg-brand/10 text-brand hover:bg-brand/20 transition-all"
+              title="Add Payment Method"
+            >
+              <Plus size={20} />
+            </button>
+          </div>
+
+          {isLoadingMethods ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="animate-spin text-brand" size={24} />
+            </div>
+          ) : paymentMethods.length > 0 ? (
+            <div className="space-y-4">
+              {paymentMethods.map((pm) => (
+                <div 
+                  key={pm.id}
+                  className={cn(
+                    "p-4 rounded-2xl border transition-all flex items-center justify-between",
+                    theme === 'dark' ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-200"
+                  )}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      "w-12 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold uppercase",
+                      theme === 'dark' ? "bg-white/10" : "bg-white border border-gray-200"
+                    )}>
+                      {pm.brand}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold">•••• •••• •••• {pm.last4}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">Expires {pm.expMonth}/{pm.expYear}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {defaultMethodId === pm.id ? (
+                      <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-500 uppercase tracking-wider bg-emerald-500/10 px-2 py-1 rounded-lg">
+                        <CheckCircle size={10} />
+                        Default
+                      </span>
+                    ) : (
+                      <button 
+                        onClick={() => handleSetDefault(pm.id)}
+                        className="text-[10px] font-bold text-gray-500 hover:text-brand uppercase tracking-wider transition-colors"
+                      >
+                        Set Default
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => handleRemoveMethod(pm.id)}
+                      className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                      title="Remove Card"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <CreditCard size={40} className="text-gray-300 mx-auto mb-4 opacity-20" />
+              <p className="text-sm text-gray-500">No payment methods saved.</p>
+              <button 
+                onClick={handleAddMethod}
+                className="mt-4 text-brand font-bold text-sm hover:underline"
+              >
+                Add your first card
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className={cn(
+          "p-8 rounded-3xl border backdrop-blur-sm transition-all",
+          theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-gray-200 shadow-sm"
+        )}>
           <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
             <Bell size={20} className="text-brand" />
             Notification Settings
@@ -587,23 +706,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 )}
                 placeholder="••••••••"
               />
-            </div>
-            <div>
-              <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1 block">Confirm New Password</label>
-              <input 
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className={cn(
-                  "w-full border rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand/50 outline-none transition-all",
-                  theme === 'dark' ? "bg-white/5 border-white/10 text-white" : "bg-gray-50 border-gray-200 text-gray-900"
-                )}
-                placeholder="••••••••"
-              />
+              <PasswordStrengthIndicator password={newPassword} theme={theme} />
             </div>
             <button 
               type="submit"
-              disabled={isChangingPassword || !newPassword || !confirmPassword}
+              disabled={isChangingPassword || !newPassword}
               className="w-full bg-brand text-white py-3 rounded-xl font-bold hover:bg-brand-hover transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isChangingPassword ? <Loader2 className="animate-spin" size={18} /> : 'Update Password'}
@@ -627,78 +734,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             onGenerate={onGenerateApiKey}
             onDelete={onDeleteApiKey}
           />
-        </div>
-
-        <div className={cn(
-          "p-8 rounded-3xl border backdrop-blur-sm transition-all",
-          theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-gray-200 shadow-sm"
-        )}>
-          <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-            <Settings size={20} className="text-brand" />
-            Custom Error Messages
-          </h3>
-          <div className="space-y-4">
-            {Object.entries(customErrorMessages).map(([key, value]) => (
-              <div key={key} className="flex items-center gap-2">
-                <input
-                  value={key}
-                  readOnly
-                  className={cn(
-                    "flex-1 border rounded-xl px-4 py-3 text-sm",
-                    theme === 'dark' ? "bg-white/5 border-white/10 text-white" : "bg-gray-50 border-gray-200 text-gray-900"
-                  )}
-                />
-                <input
-                  value={value}
-                  onChange={(e) => setCustomErrorMessages({ ...customErrorMessages, [key]: e.target.value })}
-                  className={cn(
-                    "flex-1 border rounded-xl px-4 py-3 text-sm",
-                    theme === 'dark' ? "bg-white/5 border-white/10 text-white" : "bg-gray-50 border-gray-200 text-gray-900"
-                  )}
-                />
-                <button
-                  onClick={() => {
-                    const newMessages = { ...customErrorMessages };
-                    delete newMessages[key];
-                    setCustomErrorMessages(newMessages);
-                  }}
-                  className="text-red-500 hover:text-red-600"
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
-            ))}
-            <div className="flex items-center gap-2">
-              <input
-                placeholder="Original Error Message"
-                className={cn(
-                  "flex-1 border rounded-xl px-4 py-3 text-sm",
-                  theme === 'dark' ? "bg-white/5 border-white/10 text-white" : "bg-gray-50 border-gray-200 text-gray-900"
-                )}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    const target = e.target as HTMLInputElement;
-                    if (target.value) {
-                      setCustomErrorMessages({ ...customErrorMessages, [target.value]: '' });
-                      target.value = '';
-                    }
-                  }
-                }}
-              />
-              <span className="text-gray-500 text-xs">Press Enter to add</span>
-            </div>
-            <div className="pt-4 border-t border-gray-200 dark:border-white/10">
-              <button
-                onClick={() => {
-                  localStorage.clear();
-                  window.location.reload();
-                }}
-                className="w-full py-3 rounded-xl bg-red-500 text-white font-bold hover:bg-red-600 transition-all"
-              >
-                Clear All Local Storage
-              </button>
-            </div>
-          </div>
         </div>
       </div>
 

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Download, Upload, Image as ImageIcon, Palette, Settings2 } from 'lucide-react';
+import { X, Download, Palette, Image as ImageIcon, Settings2, Trash2, Upload } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -16,25 +16,13 @@ interface QrCodeModalProps {
   theme: 'light' | 'dark';
 }
 
-type ErrorCorrectionLevel = 'L' | 'M' | 'Q' | 'H';
-
 export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, onClose, url, theme }) => {
-  const [logo, setLogo] = useState<string | null>(null);
   const [fgColor, setFgColor] = useState('#000000');
   const [bgColor, setBgColor] = useState('#ffffff');
-  const [errorCorrectionLevel, setErrorCorrectionLevel] = useState<ErrorCorrectionLevel>('H');
-  const [showAdvanced, setShowAdvanced] = useState(false);
-
-  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLogo(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoSize, setLogoSize] = useState(40);
+  const [activeTab, setActiveTab] = useState<'colors' | 'logo' | 'settings'>('colors');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDownload = () => {
     const svg = document.getElementById('qr-code-svg');
@@ -44,9 +32,15 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, onClose, url, 
       const ctx = canvas.getContext('2d');
       const img = new Image();
       img.onload = () => {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx?.drawImage(img, 0, 0);
+        // Use higher resolution for download
+        const scale = 4;
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        if (ctx) {
+          ctx.fillStyle = bgColor;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        }
         const pngFile = canvas.toDataURL('image/png');
         const downloadLink = document.createElement('a');
         downloadLink.href = pngFile;
@@ -55,229 +49,276 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, onClose, url, 
         downloadLink.click();
         document.body.removeChild(downloadLink);
       };
-      img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
+      img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
     }
   };
 
-  if (!isOpen || !url) return null;
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setLogoUrl(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeLogo = () => {
+    setLogoUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        />
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className={cn(
-            "relative w-full max-w-md p-8 rounded-[32px] shadow-2xl border overflow-hidden flex flex-col max-h-[90vh]",
-            theme === 'dark' ? "bg-[#0a0a0a] border-white/10" : "bg-white border-gray-100"
-          )}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
+      {isOpen && url && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             onClick={onClose}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
             className={cn(
-              "absolute top-4 right-4 p-2 rounded-xl transition-colors z-10",
-              theme === 'dark' ? "hover:bg-white/5 text-gray-500 hover:text-white" : "hover:bg-gray-100 text-gray-400 hover:text-gray-900"
+              "relative w-full max-w-4xl rounded-[40px] shadow-2xl border overflow-hidden flex flex-col md:flex-row",
+              theme === 'dark' ? "bg-[#0a0a0a] border-white/10" : "bg-white border-gray-100"
             )}
+            onClick={(e) => e.stopPropagation()}
           >
-            <X size={20} />
-          </button>
-
-          <h3 className={cn("text-2xl font-display font-bold mb-6 text-center shrink-0", theme === 'dark' ? "text-white" : "text-gray-900")}>
-            Customize QR Code
-          </h3>
-
-          <div className="flex-1 overflow-y-auto pr-2 -mr-2 space-y-8 pb-4">
-            <div className="flex justify-center">
-              <div className="p-6 bg-white rounded-3xl shadow-lg inline-block border border-gray-100">
+            {/* Left Side: Preview */}
+            <div className={cn(
+              "flex-1 p-8 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r",
+              theme === 'dark' ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-100"
+            )}>
+              <div className="p-8 bg-white rounded-[32px] shadow-2xl inline-block border border-gray-100 relative group">
                 <QRCodeSVG
                   id="qr-code-svg"
                   value={url}
-                  size={200}
-                  level={errorCorrectionLevel}
+                  size={240}
+                  level="H"
                   includeMargin={true}
                   fgColor={fgColor}
                   bgColor={bgColor}
-                  imageSettings={logo ? {
-                    src: logo,
+                  imageSettings={logoUrl ? {
+                    src: logoUrl,
                     x: undefined,
                     y: undefined,
-                    height: 40,
-                    width: 40,
+                    height: logoSize,
+                    width: logoSize,
                     excavate: true,
                   } : undefined}
                 />
               </div>
+              <p className="mt-6 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Live Preview</p>
             </div>
 
-            <div className="space-y-6">
-              {/* Logo Upload */}
-              <div className="space-y-3">
-                <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest block">Logo</label>
-                <div className="relative">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleLogoUpload}
-                    className="hidden"
-                    id="logo-upload"
-                  />
-                  <label
-                    htmlFor="logo-upload"
-                    className={cn(
-                      "w-full py-3 rounded-xl font-bold border-2 border-dashed transition-all flex items-center justify-center gap-2 cursor-pointer",
-                      theme === 'dark' 
-                        ? "border-white/20 text-gray-400 hover:border-brand hover:text-brand hover:bg-white/5" 
-                        : "border-gray-200 text-gray-500 hover:border-brand hover:text-brand hover:bg-gray-50"
-                    )}
-                  >
-                    {logo ? (
-                      <>
-                        <ImageIcon size={18} />
-                        <span>Change Logo</span>
-                      </>
-                    ) : (
-                      <>
-                        <Upload size={18} />
-                        <span>Add Logo</span>
-                      </>
-                    )}
-                  </label>
-                </div>
-                {logo && (
-                  <div className="flex justify-center">
-                    <button
-                      onClick={() => setLogo(null)}
-                      className="text-xs text-red-500 hover:text-red-600 font-medium"
-                    >
-                      Remove Logo
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Colors */}
-              <div className="space-y-3">
-                <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest flex items-center gap-2">
-                  <Palette size={12} />
-                  Colors
-                </label>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className={cn("text-xs font-medium", theme === 'dark' ? "text-gray-400" : "text-gray-600")}>Foreground</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={fgColor}
-                        onChange={(e) => setFgColor(e.target.value)}
-                        className="w-8 h-8 rounded cursor-pointer border-0 p-0 bg-transparent"
-                      />
-                      <input
-                        type="text"
-                        value={fgColor}
-                        onChange={(e) => setFgColor(e.target.value)}
-                        className={cn(
-                          "flex-1 px-3 py-1.5 rounded-lg text-sm border font-mono uppercase",
-                          theme === 'dark' ? "bg-black/40 border-white/10 text-white" : "bg-gray-50 border-gray-200 text-gray-900"
-                        )}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className={cn("text-xs font-medium", theme === 'dark' ? "text-gray-400" : "text-gray-600")}>Background</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={bgColor}
-                        onChange={(e) => setBgColor(e.target.value)}
-                        className="w-8 h-8 rounded cursor-pointer border-0 p-0 bg-transparent"
-                      />
-                      <input
-                        type="text"
-                        value={bgColor}
-                        onChange={(e) => setBgColor(e.target.value)}
-                        className={cn(
-                          "flex-1 px-3 py-1.5 rounded-lg text-sm border font-mono uppercase",
-                          theme === 'dark' ? "bg-black/40 border-white/10 text-white" : "bg-gray-50 border-gray-200 text-gray-900"
-                        )}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Advanced Settings Toggle */}
-              <div>
+            {/* Right Side: Controls */}
+            <div className="flex-1 p-8 flex flex-col h-[600px] md:h-auto overflow-y-auto">
+              <div className="flex items-center justify-between mb-8">
+                <h3 className={cn("text-2xl font-display font-bold", theme === 'dark' ? "text-white" : "text-gray-900")}>
+                  QR Designer
+                </h3>
                 <button
-                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  onClick={onClose}
                   className={cn(
-                    "flex items-center gap-2 text-xs font-bold transition-colors",
-                    theme === 'dark' ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-gray-900"
+                    "p-2 rounded-xl transition-colors",
+                    theme === 'dark' ? "hover:bg-white/5 text-gray-500 hover:text-white" : "hover:bg-gray-100 text-gray-400 hover:text-gray-900"
                   )}
                 >
-                  <Settings2 size={14} />
-                  {showAdvanced ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
+                  <X size={20} />
                 </button>
               </div>
 
-              {/* Advanced Settings */}
-              <AnimatePresence>
-                {showAdvanced && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="overflow-hidden"
+              {/* Tabs */}
+              <div className="flex gap-2 mb-8 p-1 bg-gray-100 dark:bg-white/5 rounded-2xl">
+                {[
+                  { id: 'colors', icon: Palette, label: 'Colors' },
+                  { id: 'logo', icon: ImageIcon, label: 'Logo' },
+                  { id: 'settings', icon: Settings2, label: 'Settings' }
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={cn(
+                      "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                      activeTab === tab.id
+                        ? "bg-brand text-white shadow-lg shadow-brand/20"
+                        : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                    )}
                   >
-                    <div className="pt-2 space-y-3">
-                      <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest block">Error Correction Level</label>
-                      <div className="grid grid-cols-4 gap-2">
-                        {(['L', 'M', 'Q', 'H'] as ErrorCorrectionLevel[]).map((level) => (
-                          <button
-                            key={level}
-                            onClick={() => setErrorCorrectionLevel(level)}
-                            className={cn(
-                              "py-2 rounded-lg text-xs font-bold border transition-all",
-                              errorCorrectionLevel === level
-                                ? "bg-brand border-brand text-white"
-                                : theme === 'dark'
-                                  ? "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
-                                  : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
-                            )}
-                          >
-                            {level}
-                          </button>
-                        ))}
+                    <tab.icon size={14} />
+                    <span className="hidden sm:inline">{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex-1 space-y-8">
+                {activeTab === 'colors' && (
+                  <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Foreground Color</label>
+                      <div className="flex items-center gap-4">
+                        <input 
+                          type="color" 
+                          value={fgColor} 
+                          onChange={(e) => setFgColor(e.target.value)}
+                          className="w-12 h-12 rounded-xl border-none cursor-pointer bg-transparent"
+                        />
+                        <input 
+                          type="text" 
+                          value={fgColor} 
+                          onChange={(e) => setFgColor(e.target.value)}
+                          className={cn(
+                            "flex-1 px-4 py-3 rounded-xl border font-mono text-sm focus:outline-none focus:ring-2 focus:ring-brand/50",
+                            theme === 'dark' ? "bg-black/40 border-white/10 text-white" : "bg-gray-50 border-gray-200"
+                          )}
+                        />
                       </div>
-                      <p className="text-[10px] text-gray-500">
-                        Higher levels allow the QR code to be read even if it is partially obscured or damaged. Level H is recommended when using a logo.
-                      </p>
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Background Color</label>
+                      <div className="flex items-center gap-4">
+                        <input 
+                          type="color" 
+                          value={bgColor} 
+                          onChange={(e) => setBgColor(e.target.value)}
+                          className="w-12 h-12 rounded-xl border-none cursor-pointer bg-transparent"
+                        />
+                        <input 
+                          type="text" 
+                          value={bgColor} 
+                          onChange={(e) => setBgColor(e.target.value)}
+                          className={cn(
+                            "flex-1 px-4 py-3 rounded-xl border font-mono text-sm focus:outline-none focus:ring-2 focus:ring-brand/50",
+                            theme === 'dark' ? "bg-black/40 border-white/10 text-white" : "bg-gray-50 border-gray-200"
+                          )}
+                        />
+                      </div>
+                    </div>
+                    <div className="pt-4 flex flex-wrap gap-2">
+                      {['#000000', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'].map(color => (
+                        <button
+                          key={color}
+                          onClick={() => setFgColor(color)}
+                          className="w-8 h-8 rounded-full border border-white/10 shadow-sm transition-transform hover:scale-110"
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
                     </div>
                   </motion.div>
                 )}
-              </AnimatePresence>
-            </div>
-          </div>
 
-          <div className="pt-6 mt-auto shrink-0 border-t border-gray-100 dark:border-white/10">
-            <button
-              onClick={handleDownload}
-              className="w-full py-4 bg-brand text-white rounded-2xl font-bold hover:bg-brand-hover transition-all shadow-lg shadow-brand/20 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <Download size={20} />
-              Download PNG
-            </button>
-          </div>
-        </motion.div>
-      </div>
+                {activeTab === 'logo' && (
+                  <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                    <div className="space-y-4">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Center Logo</label>
+                      {logoUrl ? (
+                        <div className={cn(
+                          "p-4 rounded-2xl border flex items-center justify-between gap-4",
+                          theme === 'dark' ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-100"
+                        )}>
+                          <div className="flex items-center gap-3">
+                            <img src={logoUrl} alt="Logo" className="w-10 h-10 rounded-lg object-cover border border-white/10" />
+                            <span className="text-xs font-bold text-gray-500">Custom Logo Active</span>
+                          </div>
+                          <button 
+                            onClick={removeLogo}
+                            className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl transition-colors"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          className={cn(
+                            "w-full py-8 rounded-3xl border-2 border-dashed flex flex-col items-center justify-center gap-3 transition-all group",
+                            theme === 'dark' ? "border-white/10 hover:border-brand/50 hover:bg-brand/5" : "border-gray-200 hover:border-brand/50 hover:bg-brand/5"
+                          )}
+                        >
+                          <div className="w-12 h-12 rounded-2xl bg-brand/10 text-brand flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <Upload size={24} />
+                          </div>
+                          <span className="text-xs font-bold text-gray-500">Click to upload logo</span>
+                        </button>
+                      )}
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        onChange={handleLogoUpload} 
+                        accept="image/*" 
+                        className="hidden" 
+                      />
+                    </div>
+
+                    {logoUrl && (
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Logo Size</label>
+                          <span className="text-[10px] font-mono text-brand font-bold">{logoSize}px</span>
+                        </div>
+                        <input 
+                          type="range" 
+                          min="20" 
+                          max="80" 
+                          value={logoSize} 
+                          onChange={(e) => setLogoSize(parseInt(e.target.value))}
+                          className="w-full h-1.5 bg-gray-200 dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-brand"
+                        />
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+
+                {activeTab === 'settings' && (
+                  <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                    <div className="p-6 rounded-3xl bg-brand/5 border border-brand/10">
+                      <h4 className="text-xs font-black uppercase tracking-widest text-brand mb-2">Pro Tip</h4>
+                      <p className="text-[11px] text-gray-500 leading-relaxed">
+                        High contrast between foreground and background colors ensures better scanability. Always test your custom QR code before sharing.
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Error Correction</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        {['L', 'M', 'Q', 'H'].map(level => (
+                          <button
+                            key={level}
+                            className={cn(
+                              "py-3 rounded-xl text-xs font-bold border transition-all",
+                              level === 'H' ? "bg-brand/10 border-brand text-brand" : "border-white/10 text-gray-500 opacity-50 cursor-not-allowed"
+                            )}
+                            disabled={level !== 'H'}
+                          >
+                            Level {level}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-[9px] text-gray-500 italic">Level H (High) is recommended when using logos.</p>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+
+              <div className="mt-8 pt-8 border-t border-gray-100 dark:border-white/10">
+                <button
+                  onClick={handleDownload}
+                  className="w-full py-4 bg-brand text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[11px] hover:bg-brand-hover transition-all shadow-lg shadow-brand/20 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <Download size={18} />
+                  Download High-Res PNG
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </AnimatePresence>
   );
 };

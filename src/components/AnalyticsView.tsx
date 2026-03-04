@@ -36,13 +36,17 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   useEffect(() => {
     if (!isAutoRefreshEnabled) return;
     
-    const interval = setInterval(() => {
-      if (selectedPreset === 'custom') {
-        onRefresh(startDate, endDate);
-      } else if (selectedPreset === 'all') {
-        onRefresh(undefined, undefined, 'all');
-      } else {
-        onRefresh(startDate, endDate); // For 7d/30d, the dates are already set in state
+    const interval = setInterval(async () => {
+      try {
+        if (selectedPreset === 'custom') {
+          await onRefresh(startDate, endDate);
+        } else if (selectedPreset === 'all') {
+          await onRefresh(undefined, undefined, 'all');
+        } else {
+          await onRefresh(startDate, endDate);
+        }
+      } catch (error) {
+        console.error('Error during auto-refresh:', error);
       }
     }, 10000); // Refresh every 10 seconds for real-time feel
     
@@ -700,7 +704,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           </h3>
           <div className="space-y-3">
             {recentClicks.map((click: any, idx: number) => (
-              <div key={idx} className={cn(
+              <div key={click.id || idx} className={cn(
                 "flex items-center justify-between p-5 rounded-2xl border transition-all relative overflow-hidden group",
                 theme === 'dark' ? "bg-white/5 border-white/5" : "bg-gray-50 border-gray-100"
               )}>

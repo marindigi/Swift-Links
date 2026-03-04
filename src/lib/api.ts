@@ -46,21 +46,19 @@ export async function apiClient<T = any>(endpoint: string, options: ApiOptions =
     }
 
     if (!response.ok) {
+      let msg = data.error || errorMessage;
       if (response.status === 401) {
-        throw new Error('Unauthorized');
+        msg = 'Unauthorized. Please log in again.';
+      } else if (response.status === 403) {
+        msg = 'Forbidden. You do not have permission to perform this action.';
+      } else if (response.status === 404) {
+        msg = 'The requested resource was not found.';
+      } else if (response.status === 429) {
+        msg = 'Rate limit exceeded. Please try again later.';
+      } else if (response.status >= 500) {
+        msg = 'Server error. Please try again later.';
       }
-      
-      let errorMessageToDisplay = data.error || errorMessage;
-      try {
-        const customMessages = JSON.parse(localStorage.getItem('customErrorMessages') || '{}');
-        if (customMessages[errorMessageToDisplay]) {
-          errorMessageToDisplay = customMessages[errorMessageToDisplay];
-        }
-      } catch (e) {
-        // Ignore JSON parse errors
-      }
-      
-      throw new Error(errorMessageToDisplay);
+      throw new Error(msg);
     }
 
     if (response.status === 204) {

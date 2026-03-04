@@ -777,15 +777,39 @@ function AppContent() {
     setIsQrModalOpen(true);
   };
 
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = async (startDate?: string, endDate?: string, range?: string) => {
     setIsAnalyticsLoading(true);
     try {
-      const data = await apiClient('/api/analytics', { showToast: false });
+      let url = '/api/analytics';
+      const params = new URLSearchParams();
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      if (range) params.append('range', range);
+      if (params.toString()) url += `?${params.toString()}`;
+      
+      const data = await apiClient(url, { showToast: false });
       setAnalyticsData(data);
     } catch (error) {
       console.error('Failed to fetch analytics:', error);
     } finally {
       setIsAnalyticsLoading(false);
+    }
+  };
+
+  const handleRequestUpgrade = async () => {
+    if (!selectedPlan) return false;
+    try {
+      await apiClient('/api/profile/upgrade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: selectedPlan.id }),
+        successMessage: 'Upgrade request sent! Admin will activate your plan shortly.'
+      });
+      // Refresh user data
+      checkAuth();
+      return true;
+    } catch (error) {
+      return false;
     }
   };
 
@@ -1741,6 +1765,7 @@ function AppContent() {
           <PaymentModal 
             isOpen={isPaymentModalOpen}
             onClose={() => setIsPaymentModalOpen(false)}
+            onConfirm={handleRequestUpgrade}
             plan={selectedPlan}
             theme={theme}
           />
