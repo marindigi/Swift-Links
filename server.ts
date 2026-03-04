@@ -6,6 +6,7 @@ import Database from "better-sqlite3";
 import session from "express-session";
 import bcrypt from "bcryptjs";
 import { createClient } from '@supabase/supabase-js';
+import Stripe from 'stripe';
 import nodemailer from 'nodemailer';
 import cron from 'node-cron';
 import { UAParser } from 'ua-parser-js';
@@ -20,6 +21,17 @@ const SUPABASE_URL = process.env.SUPABASE_URL || "https://agqxtvotqgndohhtdvov.s
 const SUPABASE_PUBLIC_KEY = process.env.SUPABASE_PUBLIC_KEY || "sb_publishable_kUE5pMvbhzYTS5HgTUDauQ_i9iKzn-I";
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLIC_KEY);
 
+// Initialize Stripe lazily
+let stripe: Stripe | null = null;
+const getStripe = () => {
+  if (!stripe && process.env.STRIPE_SECRET_KEY) {
+    stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2025-01-27.acacia' as any,
+    });
+  }
+  return stripe;
+};
+
 // Email Transporter
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.ethereal.email',
@@ -33,63 +45,7 @@ const transporter = nodemailer.createTransport({
   } : {}),
 });
 
-const getEmailTemplate = (title: string, content: string, ctaText?: string, ctaUrl?: string) => {
-  const brandColor = '#0066FF';
-  const appUrl = process.env.APP_URL || 'https://swiftlinks.com';
-  
-  return `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
-          .container { max-width: 600px; margin: 0 auto; padding: 40px 20px; }
-          .header { text-align: center; margin-bottom: 30px; }
-          .logo { font-size: 24px; font-weight: bold; color: ${brandColor}; text-decoration: none; }
-          .content { background: #ffffff; border-radius: 8px; padding: 30px; border: 1px solid #eeeeee; }
-          .title { font-size: 20px; font-weight: bold; margin-bottom: 20px; color: #111; }
-          .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #999; }
-          .button { 
-            display: inline-block; 
-            padding: 12px 24px; 
-            background-color: ${brandColor}; 
-            color: #ffffff !important; 
-            text-decoration: none; 
-            border-radius: 6px; 
-            font-weight: bold; 
-            margin-top: 20px;
-          }
-          .divider { height: 1px; background: #eeeeee; margin: 25px 0; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <a href="${appUrl}" class="logo">Swift Links</a>
-          </div>
-          <div class="content">
-            <div class="title">${title}</div>
-            ${content}
-            ${ctaText && ctaUrl ? `<div style="text-align: center;"><a href="${ctaUrl}" class="button">${ctaText}</a></div>` : ''}
-            <div class="divider"></div>
-            <p style="font-size: 14px; color: #666;">If you have any questions, feel free to reply to this email or contact our support team.</p>
-          </div>
-          <div class="footer">
-            &copy; ${new Date().getFullYear()} Swift Links. All rights reserved.<br>
-            You are receiving this because you have an account on Swift Links.
-          </div>
-        </div>
-      </body>
-    </html>
-  `;
-};
-
-const sendEmail = async (to: string | null | undefined, subject: string, html: string) => {
-  if (!to) {
-    console.warn('Email sending skipped: No recipient address provided.');
-    return;
-  }
+const sendEmail = async (to: string, subject: string, html: string) => {
   try {
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
       console.log('Email sending skipped: SMTP credentials not configured.');
@@ -97,7 +53,7 @@ const sendEmail = async (to: string | null | undefined, subject: string, html: s
       return;
     }
     await transporter.sendMail({
-      from: process.env.SMTP_FROM || '"Swift Links" <noreply@swiftlinks.com>',
+      from: process.env.SMTP_FROM || '"Cutly" <noreply@cutly.us>',
       to,
       subject,
       html,
@@ -126,7 +82,7 @@ db.exec(`
 
 // Add columns if they don't exist (migration)
 try {
-  db.exec("ALTER TABLE users ADD COLUMN defaultDomainId TEXT");
+  db.exec("ALTER TABLE users ADD COLUMN stripeCustomerId TEXT");
 } catch (e) {}
 try {
   db.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'");
@@ -182,9 +138,6 @@ try {
 try {
   db.exec("ALTER TABLE users ADD COLUMN notify_plan_expiry BOOLEAN DEFAULT 1");
 } catch (e) {}
-try {
-  db.exec("ALTER TABLE tasks ADD COLUMN notified BOOLEAN DEFAULT 0");
-} catch (e) {}
 
 // Promote specific user to admin
 const adminEmail = process.env.ADMIN_EMAIL || "mcs.marinroeun@gmail.com";
@@ -192,43 +145,6 @@ const adminUser = db.prepare("SELECT * FROM users WHERE email = ?").get(adminEma
 if (adminUser) {
   db.prepare("UPDATE users SET role = 'admin', plan = 'enterprise' WHERE email = ?").run(adminEmail);
 }
-
-// Cron job for task reminders
-cron.schedule('0 * * * *', async () => { // Every hour
-  console.log('Running task reminder job...');
-  const now = new Date();
-  const twentyFourHoursLater = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  
-  const tasksDue = db.prepare(`
-    SELECT t.*, u.email, u.name 
-    FROM tasks t 
-    JOIN users u ON t.userId = u.id 
-    WHERE t.dueDate IS NOT NULL 
-    AND t.dueDate > ? 
-    AND t.dueDate < ? 
-    AND t.completed = 0 
-    AND (t.notified = 0 OR t.notified IS NULL)
-  `).all(now.toISOString(), twentyFourHoursLater.toISOString()) as any[];
-
-  for (const task of tasksDue) {
-    if (task.email) {
-      const subject = `Reminder: ${task.title} is due soon`;
-      const html = getEmailTemplate(
-        'Task Reminder',
-        `<p>Hi ${task.name || 'there'},</p>
-         <p>This is a reminder that your task <strong>"${task.title}"</strong> is due on ${new Date(task.dueDate).toLocaleString()}.</p>
-         <p>Please make sure to complete it on time.</p>`,
-        'View Tasks',
-        `${process.env.APP_URL}/tasks`
-      );
-      
-      await sendEmail(task.email, subject, html);
-      
-      // Mark as notified
-      db.prepare('UPDATE tasks SET notified = 1 WHERE id = ?').run(task.id);
-    }
-  }
-});
 
 // Create tasks table
 db.exec(`
@@ -239,7 +155,6 @@ db.exec(`
     description TEXT,
     completed BOOLEAN DEFAULT 0,
     dueDate DATETIME,
-    notified BOOLEAN DEFAULT 0,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(userId) REFERENCES users(id)
   );
@@ -441,10 +356,8 @@ const rateLimit = (req: any, res: any, next: any) => {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
-
-  // Trust proxy for rate limiting
   app.set('trust proxy', 1);
+  const PORT = 3000;
 
   // Security headers
   app.use(helmet({
@@ -474,7 +387,7 @@ async function startServer() {
 
   app.use(express.json());
   app.use(session({
-    secret: process.env.SESSION_SECRET || "swift-links-secret-dev-only",
+    secret: process.env.SESSION_SECRET || "cutly-secret-dev-only",
     resave: false,
     saveUninitialized: true,
     cookie: {
@@ -583,7 +496,7 @@ async function startServer() {
       // Create anonymous user
       db.prepare("INSERT OR IGNORE INTO users (id, email) VALUES (?, ?)").run(
         userId,
-        `anon_${userId.substring(0, 8)}@swiftlinks.local`
+        `anon_${userId.substring(0, 8)}@cutly.local`
       );
       req.user = { uid: userId, email: null, role: 'user', plan: 'free', name: null, avatar_url: null, isAnonymous: true };
     } else {
@@ -611,8 +524,7 @@ async function startServer() {
         avatar_url: user.avatar_url, 
         isAnonymous: !user.password,
         status: user.status || 'active',
-        expiresAt: user.expiresAt,
-        defaultDomainId: user.defaultDomainId
+        expiresAt: user.expiresAt
       };
     }
 
@@ -657,7 +569,6 @@ async function startServer() {
       avatar_url: req.user.avatar_url,
       status: req.user.status,
       expiresAt: req.user.expiresAt,
-      defaultDomainId: req.user.defaultDomainId,
       usage: {
         linksThisMonth: linkCount.count,
         domains: domainCount.count
@@ -823,15 +734,222 @@ async function startServer() {
     });
   });
 
-  // Payment routes removed
+  // Stripe Payment Routes
+  app.post("/api/payments/create-checkout-session", authenticate, async (req: any, res) => {
+    const { plan, interval } = req.body;
+    const s = getStripe();
+    
+    if (!s) {
+      return res.status(500).json({ error: "Stripe is not configured" });
+    }
+
+    if (req.user.isAnonymous) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    try {
+      // Define prices (in a real app, these would be in Stripe dashboard)
+      const prices: Record<string, Record<string, number>> = {
+        pro: { monthly: 1200, yearly: 12000 },
+        enterprise: { monthly: 4900, yearly: 46800 }
+      };
+
+      if (!prices[plan]) {
+        return res.status(400).json({ error: "Invalid plan" });
+      }
+
+      const amount = prices[plan][interval];
+      const session = await s.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: 'usd',
+              product_data: {
+                name: `Cutly ${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan (${interval})`,
+                description: `Subscription to Cutly ${plan} plan`,
+              },
+              unit_amount: amount,
+              recurring: {
+                interval: interval === 'monthly' ? 'month' : 'year',
+              },
+            },
+            quantity: 1,
+          },
+        ],
+        mode: 'subscription',
+        success_url: `${req.headers.origin}/dashboard?payment=success`,
+        cancel_url: `${req.headers.origin}/pricing?payment=cancelled`,
+        customer_email: req.user.email,
+        metadata: {
+          userId: req.user.uid,
+          plan: plan,
+          interval: interval
+        },
+      });
+
+      // Store pending plan
+      db.prepare("UPDATE users SET pendingPlan = ? WHERE id = ?").run(plan, req.user.uid);
+
+      res.json({ url: session.url });
+    } catch (error: any) {
+      console.error("Stripe session error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Stripe Webhook
+  app.post("/api/payments/webhook", express.raw({ type: 'application/json' }), async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    const s = getStripe();
+
+    if (!s || !process.env.STRIPE_WEBHOOK_SECRET) {
+      return res.status(500).json({ error: "Stripe webhook not configured" });
+    }
+
+    let event;
+
+    try {
+      event = s.webhooks.constructEvent(req.body, sig!, process.env.STRIPE_WEBHOOK_SECRET);
+    } catch (err: any) {
+      console.error(`Webhook Error: ${err.message}`);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    // Handle the event
+    switch (event.type) {
+      case 'checkout.session.completed':
+        const session = event.data.object as Stripe.Checkout.Session;
+        const userId = session.metadata?.userId;
+        const plan = session.metadata?.plan;
+        const customerId = session.customer as string;
+        
+        if (userId && plan) {
+          // Update user plan and customer ID
+          const expiresAt = new Date();
+          if (session.metadata?.interval === 'monthly') {
+            expiresAt.setMonth(expiresAt.getMonth() + 1);
+          } else {
+            expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+          }
+          
+          db.prepare("UPDATE users SET plan = ?, pendingPlan = NULL, expiresAt = ?, stripeCustomerId = ? WHERE id = ?").run(
+            plan,
+            expiresAt.toISOString(),
+            customerId,
+            userId
+          );
+          console.log(`[Stripe] Plan updated for user ${userId} to ${plan}, customer: ${customerId}`);
+        }
+        break;
+      case 'customer.subscription.deleted':
+        // Handle subscription cancellation
+        // In a real app, you'd look up the user by Stripe customer ID
+        break;
+      default:
+        console.log(`Unhandled event type ${event.type}`);
+    }
+
+    res.json({ received: true });
+  });
 
   // Payment Method Management
-  // Removed
+  app.get("/api/payments/methods", authenticate, async (req: any, res) => {
+    const s = getStripe();
+    if (!s) return res.status(500).json({ error: "Stripe not configured" });
 
-// Payment routes removed
+    const user = db.prepare("SELECT stripeCustomerId FROM users WHERE id = ?").get(req.user.uid) as any;
+    if (!user?.stripeCustomerId) {
+      return res.json({ methods: [], defaultMethodId: null });
+    }
+
+    try {
+      const paymentMethods = await s.paymentMethods.list({
+        customer: user.stripeCustomerId,
+        type: 'card',
+      });
+
+      const customer = await s.customers.retrieve(user.stripeCustomerId) as Stripe.Customer;
+      const defaultMethodId = customer.invoice_settings.default_payment_method as string;
+
+      res.json({ 
+        methods: paymentMethods.data.map(pm => ({
+          id: pm.id,
+          brand: pm.card?.brand,
+          last4: pm.card?.last4,
+          expMonth: pm.card?.exp_month,
+          expYear: pm.card?.exp_year,
+        })),
+        defaultMethodId
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/payments/methods/:id/default", authenticate, async (req: any, res) => {
+    const s = getStripe();
+    if (!s) return res.status(500).json({ error: "Stripe not configured" });
+
+    const user = db.prepare("SELECT stripeCustomerId FROM users WHERE id = ?").get(req.user.uid) as any;
+    if (!user?.stripeCustomerId) return res.status(404).json({ error: "Customer not found" });
+
+    try {
+      await s.customers.update(user.stripeCustomerId, {
+        invoice_settings: {
+          default_payment_method: req.params.id,
+        },
+      });
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/payments/methods/:id", authenticate, async (req: any, res) => {
+    const s = getStripe();
+    if (!s) return res.status(500).json({ error: "Stripe not configured" });
+
+    try {
+      await s.paymentMethods.detach(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/payments/create-setup-session", authenticate, async (req: any, res) => {
+    const s = getStripe();
+    if (!s) return res.status(500).json({ error: "Stripe not configured" });
+
+    let user = db.prepare("SELECT stripeCustomerId FROM users WHERE id = ?").get(req.user.uid) as any;
+    
+    try {
+      if (!user?.stripeCustomerId) {
+        const customer = await s.customers.create({
+          email: req.user.email,
+          metadata: { userId: req.user.uid }
+        });
+        db.prepare("UPDATE users SET stripeCustomerId = ? WHERE id = ?").run(customer.id, req.user.uid);
+        user = { stripeCustomerId: customer.id };
+      }
+
+      const session = await s.checkout.sessions.create({
+        payment_method_types: ['card'],
+        mode: 'setup',
+        customer: user.stripeCustomerId,
+        success_url: `${req.headers.origin}/profile?payment_setup=success`,
+        cancel_url: `${req.headers.origin}/profile?payment_setup=cancelled`,
+      });
+
+      res.json({ url: session.url });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
 
   app.post("/api/profile/update", authenticate, (req: any, res) => {
-    const { name, email, avatar_url, defaultDomainId } = req.body;
+    const { name, email, avatar_url } = req.body;
     
     if (req.user.isAnonymous) {
       return res.status(401).json({ error: "Authentication required" });
@@ -846,9 +964,9 @@ async function startServer() {
         }
       }
 
-      db.prepare("UPDATE users SET email = ?, name = ?, avatar_url = ?, defaultDomainId = ? WHERE id = ?").run(email, name, avatar_url, defaultDomainId || null, req.user.uid);
+      db.prepare("UPDATE users SET email = ?, name = ?, avatar_url = ? WHERE id = ?").run(email, name, avatar_url, req.user.uid);
       
-      const updatedUser = db.prepare("SELECT id, email, name, avatar_url, role, plan, createdAt, defaultDomainId FROM users WHERE id = ?").get(req.user.uid) as any;
+      const updatedUser = db.prepare("SELECT id, email, name, avatar_url, role, plan, createdAt FROM users WHERE id = ?").get(req.user.uid) as any;
       res.json(updatedUser);
     } catch (error) {
       console.error("Profile update error:", error);
@@ -960,16 +1078,6 @@ async function startServer() {
     res.json({ success: true });
   });
 
-  app.put("/api/urls/:id", authenticate, (req: any, res) => {
-    const { originalUrl, expiresAt } = req.body;
-    const result = db.prepare("UPDATE urls SET originalUrl = ?, expiresAt = ? WHERE id = ? AND userId = ?")
-      .run(originalUrl, expiresAt, req.params.id, req.user.uid);
-    if (result.changes === 0) {
-      return res.status(404).json({ error: "URL not found" });
-    }
-    res.json({ success: true });
-  });
-
   // Domain Management APIs
   app.get("/api/domains", (_req, res) => {
     const domains = db.prepare("SELECT * FROM domains ORDER BY createdAt DESC").all();
@@ -1047,7 +1155,7 @@ const checkDomainLimit = (userId: string) => {
       
       const domainName = name.trim().toLowerCase();
       const id = nanoid(8);
-      const verificationToken = `swift-links-verification=${nanoid(32)}`;
+      const verificationToken = `cutly-verification=${nanoid(32)}`;
       
       db.prepare("INSERT INTO domains (id, name, userId, status, verificationToken, verificationType) VALUES (?, ?, ?, ?, ?, ?)").run(
         id, 
@@ -1116,9 +1224,8 @@ const checkDomainLimit = (userId: string) => {
       const id = nanoid(6);
 
       let domainName = null;
-      const finalDomainId = domainId || req.user.defaultDomainId;
-      if (finalDomainId) {
-        const domain = db.prepare("SELECT name, status FROM domains WHERE id = ? AND userId = ?").get(finalDomainId, req.user.uid) as any;
+      if (domainId) {
+        const domain = db.prepare("SELECT name, status FROM domains WHERE id = ? AND userId = ?").get(domainId, req.user.uid) as any;
         if (!domain) return res.status(404).json({ error: "Domain not found" });
         if (domain.status !== 'verified') return res.status(403).json({ error: "Domain must be verified before use" });
         domainName = domain.name;
@@ -1127,13 +1234,13 @@ const checkDomainLimit = (userId: string) => {
       db.prepare(`
         INSERT INTO urls (id, originalUrl, domainId, domainName, userId, expiresAt)
         VALUES (?, ?, ?, ?, ?, ?)
-      `).run(id, url, finalDomainId || null, domainName || null, req.user.uid, expiresAt || null);
+      `).run(id, url, domainId || null, domainName || null, req.user.uid, expiresAt || null);
 
       // Send email notification for new link creation
       try {
         const user = db.prepare("SELECT email, name, notify_link_created FROM users WHERE id = ?").get(req.user.uid) as any;
         if (user && user.email && user.notify_link_created !== 0) {
-          const shortUrl = domainName ? `https://${domainName}/${id}` : `https://swiftlinks.com/${id}`;
+          const shortUrl = domainName ? `https://${domainName}/${id}` : `https://cutly.us/${id}`;
           const subject = `New Link Created: ${shortUrl}`;
           const html = `
             <h2>Hello ${user.name || 'User'},</h2>
@@ -1142,7 +1249,7 @@ const checkDomainLimit = (userId: string) => {
             <p><strong>Short URL:</strong> <a href="${shortUrl}">${shortUrl}</a></p>
             <br/>
             <p>Best regards,</p>
-            <p>The Swift Links Team</p>
+            <p>The Cutly Team</p>
           `;
           sendEmail(user.email, subject, html); // Fire and forget
         }
@@ -1636,16 +1743,14 @@ const checkDomainLimit = (userId: string) => {
 
       for (const user of expiringUsers) {
         const subject = `Urgent: Your ${user.plan} plan expires in less than 3 days`;
-        const html = getEmailTemplate(
-          'Plan Expiring Soon',
-          `
-            <p>Hello ${user.name || 'User'},</p>
-            <p>Your <strong>${user.plan}</strong> plan is scheduled to expire in less than 3 days on <strong>${new Date(user.expiresAt).toLocaleDateString()}</strong>.</p>
-            <p>To avoid any interruption in your service and maintain access to your custom domains and advanced analytics, please renew your subscription today.</p>
-          `,
-          'Renew Now',
-          `${process.env.APP_URL || 'https://swiftlinks.com'}/dashboard`
-        );
+        const html = `
+          <h2>Hello ${user.name || 'User'},</h2>
+          <p>Your <strong>${user.plan}</strong> plan is scheduled to expire on <strong>${new Date(user.expiresAt).toLocaleDateString()}</strong>.</p>
+          <p>Please log in to your account and renew your plan to avoid any interruption in service.</p>
+          <br/>
+          <p>Best regards,</p>
+          <p>The Cutly Team</p>
+        `;
         await sendEmail(user.email, subject, html);
       }
 
@@ -1661,49 +1766,19 @@ const checkDomainLimit = (userId: string) => {
 
       for (const user of sevenDayUsers) {
         const subject = `Reminder: Your ${user.plan} plan expires in 7 days`;
-        const html = getEmailTemplate(
-          'Plan Renewal Reminder',
-          `
-            <p>Hello ${user.name || 'User'},</p>
-            <p>This is a friendly reminder that your <strong>${user.plan}</strong> plan will expire in one week on <strong>${new Date(user.expiresAt).toLocaleDateString()}</strong>.</p>
-            <p>We hope you've been enjoying the premium features of Swift Links. Renew now to ensure a seamless transition when your current period ends.</p>
-          `,
-          'Renew Subscription',
-          `${process.env.APP_URL || 'https://swiftlinks.com'}/dashboard`
-        );
+        const html = `
+          <h2>Hello ${user.name || 'User'},</h2>
+          <p>This is a reminder that your <strong>${user.plan}</strong> plan will expire in one week on <strong>${new Date(user.expiresAt).toLocaleDateString()}</strong>.</p>
+          <p>To ensure uninterrupted access to all premium features, please renew your plan before it expires.</p>
+          <br/>
+          <p>Best regards,</p>
+          <p>The Cutly Team</p>
+        `;
         await sendEmail(user.email, subject, html);
       }
 
-      // Check expiring URLs (7 days)
-      const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-      const sevenDaysFromNowEnd = new Date(now.getTime() + 8 * 24 * 60 * 60 * 1000);
-
-      const expiringUrls = db.prepare(`
-        SELECT u.shortUrl, u.originalUrl, u.expiresAt, us.email, us.name
-        FROM urls u
-        JOIN users us ON u.userId = us.id
-        WHERE u.expiresAt IS NOT NULL 
-        AND u.expiresAt > ? 
-        AND u.expiresAt <= ?
-      `).all(sevenDaysFromNow.toISOString(), sevenDaysFromNowEnd.toISOString()) as any[];
-
-      for (const url of expiringUrls) {
-        const subject = `Reminder: Your link ${url.shortUrl} expires in 7 days`;
-        const html = getEmailTemplate(
-          'Link Expiration Reminder',
-          `
-            <p>Hello ${url.name || 'User'},</p>
-            <p>This is a friendly reminder that your link <strong>${url.shortUrl}</strong> (pointing to ${url.originalUrl}) will expire in one week on <strong>${new Date(url.expiresAt).toLocaleDateString()}</strong>.</p>
-            <p>If you need to keep this link active, please log in to your dashboard to extend its expiration date.</p>
-          `,
-          'Manage Links',
-          `${process.env.APP_URL || 'https://swiftlinks.com'}/dashboard`
-        );
-        await sendEmail(url.email, subject, html);
-      }
-
     } catch (error) {
-      console.error('Error checking expiring plans or URLs:', error);
+      console.error('Error checking expiring plans:', error);
     }
 
     // Check expiring domains (assuming domains have an expiresAt field, if not, we'll skip or add it)
@@ -1724,7 +1799,7 @@ const checkDomainLimit = (userId: string) => {
           <p>Please ensure your payment method is up to date to keep your custom links working.</p>
           <br/>
           <p>Best regards,</p>
-          <p>The Swift Links Team</p>
+          <p>The Cutly Team</p>
         `;
         await sendEmail(domain.email, subject, html);
       }
@@ -1751,7 +1826,7 @@ const checkDomainLimit = (userId: string) => {
         `).get(user.id, oneWeekAgo.toISOString()) as any;
 
         if (stats && stats.weeklyClicks > 0) {
-          const subject = `Your Weekly Swift Links Analytics Report`;
+          const subject = `Your Weekly Cutly Analytics Report`;
           const html = `
             <h2>Hello ${user.name || 'User'},</h2>
             <p>Here is your weekly analytics summary for your short links:</p>
@@ -1762,7 +1837,7 @@ const checkDomainLimit = (userId: string) => {
             <p>Log in to your dashboard to see detailed analytics, top performing links, and more.</p>
             <br/>
             <p>Best regards,</p>
-            <p>The Swift Links Team</p>
+            <p>The Cutly Team</p>
           `;
           await sendEmail(user.email, subject, html);
         }

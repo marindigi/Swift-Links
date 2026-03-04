@@ -322,7 +322,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
 
       <div className={cn(
         "rounded-3xl border overflow-hidden shadow-xl backdrop-blur-sm",
-        theme === 'dark' ? "bg-white/5 border-white/10 shadow-black/20" : "bg-white border-gray-100 shadow-gray-200/50"
+        theme === 'dark' ? "bg-zinc-900 border-zinc-800 shadow-black/20" : "bg-white border-gray-100 shadow-gray-200/50"
       )}>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -356,8 +356,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user, idx) => (
-                  <tr key={`${user.id}-${idx}`} className={cn(
+                filteredUsers.map((user) => (
+                  <tr key={user.id} className={cn(
                     "transition-colors",
                     theme === 'dark' ? "hover:bg-white/5" : "hover:bg-gray-50"
                   )}>
@@ -624,10 +624,10 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
       </>
       ) : activeTab === 'settings' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {Array.isArray(settings) && settings.map((s, idx) => (
-            <div key={`${s.key}-${idx}`} className={cn(
+          {Array.isArray(settings) && settings.map((s) => (
+            <div key={s.key} className={cn(
               "p-6 rounded-3xl border",
-              theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-gray-100 shadow-sm"
+              theme === 'dark' ? "bg-zinc-900 border-zinc-800" : "bg-white border-gray-100 shadow-sm"
             )}>
               <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-2 block">
                 {s.key.replace(/_/g, ' ')}
@@ -660,10 +660,10 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {Array.isArray(features) && features.map((f, idx) => (
-              <div key={`${f.id}-${idx}`} className={cn(
+            {Array.isArray(features) && features.map((f) => (
+              <div key={f.id} className={cn(
                 "p-6 rounded-3xl border",
-                theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-gray-100 shadow-sm"
+                theme === 'dark' ? "bg-zinc-900 border-zinc-800" : "bg-white border-gray-100 shadow-sm"
               )}>
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
@@ -730,10 +730,10 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
             </button>
           </div>
           <div className="space-y-4">
-            {Array.isArray(faqs) && faqs.map((faq, idx) => (
-              <div key={`${faq.id}-${idx}`} className={cn(
+            {Array.isArray(faqs) && faqs.map((faq) => (
+              <div key={faq.id} className={cn(
                 "p-6 rounded-3xl border",
-                theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-gray-100 shadow-sm"
+                theme === 'dark' ? "bg-zinc-900 border-zinc-800" : "bg-white border-gray-100 shadow-sm"
               )}>
                 <div className="flex items-center justify-between mb-4">
                   <input 

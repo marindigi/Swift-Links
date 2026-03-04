@@ -188,13 +188,13 @@ export const TasksView: React.FC<TasksViewProps> = ({ theme, user, onUpgrade }) 
           </div>
         ) : (
           <AnimatePresence mode="popLayout">
-            {tasks.map((task, idx) => (
+            {tasks.map((task) => (
             <motion.div
               layout
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              key={`${task.id}-${idx}`}
+              key={task.id}
               className={cn(
                 "group p-4 rounded-2xl border transition-all flex items-center gap-4",
                 theme === 'dark' 

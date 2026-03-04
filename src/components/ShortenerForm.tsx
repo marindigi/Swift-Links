@@ -73,7 +73,6 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, 
       
       toast.success('Link shortened!');
       setUrl('');
-      setSelectedDomainId('');
     } catch (error: any) {
       setHasError(true);
       const errorMessage = error?.message || 'An unexpected error occurred';
@@ -223,7 +222,7 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, 
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `swiftlink-bulk-${Date.now()}.txt`;
+    a.download = `cutly-bulk-${Date.now()}.txt`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success('Download started');
@@ -254,25 +253,25 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, 
           <button
             onClick={() => setIsBulkMode(false)}
             className={cn(
-              "flex-1 py-3 sm:py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 touch-manipulation",
+              "flex-1 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2",
               !isBulkMode 
                 ? "bg-white dark:bg-white/10 text-brand shadow-sm border border-gray-200 dark:border-white/10" 
                 : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300"
             )}
           >
-            <Link2 size={16} />
+            <Link2 size={14} />
             Single Link
           </button>
           <button
             onClick={() => setIsBulkMode(true)}
             className={cn(
-              "flex-1 py-3 sm:py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 touch-manipulation",
+              "flex-1 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2",
               isBulkMode 
                 ? "bg-white dark:bg-white/10 text-brand shadow-sm border border-gray-200 dark:border-white/10" 
                 : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300"
             )}
           >
-            <History size={16} />
+            <History size={14} />
             Bulk Mode
           </button>
         </div>

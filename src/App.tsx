@@ -20,7 +20,6 @@ import { DomainManager } from './components/DomainManager';
 import { ApiKeyManager } from './components/ApiKeyManager';
 import { ProfileView } from './components/ProfileView';
 
-import { LinkDetailsModal } from './components/LinkDetailsModal';
 import { PaymentModal } from './components/PaymentModal';
 import { AdminView } from './components/AdminView';
 import { SupportView } from './components/SupportView';
@@ -42,11 +41,12 @@ interface ErrorBoundaryState {
 }
 
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { hasError: false };
-
   constructor(props: ErrorBoundaryProps) {
     super(props);
+    this.state = { hasError: false };
   }
+
+  state: ErrorBoundaryState = { hasError: false };
 
   static getDerivedStateFromError(_error: any) {
     return { hasError: true };
@@ -107,22 +107,6 @@ function AppContent() {
   const [domains, setDomains] = useState<Domain[]>([]);
   const [selectedDomainId, setSelectedDomainId] = useState<string>('');
   
-  const handleSetDefaultDomainId = async (id: string) => {
-    setSelectedDomainId(id);
-    if (user) {
-      try {
-        await apiClient('/api/profile/update', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ defaultDomainId: id }),
-        });
-        toast.success('Default domain updated');
-      } catch (error) {
-        toast.error('Failed to update default domain');
-      }
-    }
-  };
-  
   // API Key state
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   
@@ -139,51 +123,13 @@ function AppContent() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
-  const [selectedLink, setSelectedLink] = useState<any | null>(null);
   const [isClearHistoryModalOpen, setIsClearHistoryModalOpen] = useState(false);
   const [expiresAt, setExpiresAt] = useState('');
   const [hasError, setHasError] = useState(false);
-
-  const handleUpdateLink = async (id: string, updates: { originalUrl: string; expiresAt: string | null }) => {
-    try {
-      await apiClient(`/api/urls/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
-        successMessage: 'Link updated successfully'
-      });
-      
-      // Update history
-      const newHistory = history.map(item => 
-        item.id === id ? { ...item, ...updates } : item
-      );
-      saveHistory(newHistory);
-      
-      // Update selected link
-      if (selectedLink) {
-        setSelectedLink({ ...selectedLink, ...updates });
-      }
-    } catch (error) {
-      throw error;
-    }
-  };
   
   // Payment state
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<{ id: string; name: string; price: string } | null>(null);
-  
-  // Custom Error Messages state
-  const [customErrorMessages, setCustomErrorMessages] = useState<Record<string, string>>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('customErrorMessages') || '{}');
-    } catch {
-      return {};
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem('customErrorMessages', JSON.stringify(customErrorMessages));
-  }, [customErrorMessages]);
   
   // Analytics state
   const [view, setView] = useState<'home' | 'analytics' | 'profile' | 'admin' | 'tasks' | 'domains' | 'api-keys'>('home');
@@ -347,6 +293,9 @@ function AppContent() {
         if (error.message.toLowerCase().includes('rate limit')) {
           throw new Error('Login rate limit exceeded. Please wait a while before trying again.');
         }
+        if (error.message.toLowerCase().includes('email not confirmed')) {
+          throw new Error('EMAIL_NOT_CONFIRMED');
+        }
         throw error;
       }
       
@@ -356,6 +305,19 @@ function AppContent() {
       }
     } finally {
       setIsLoggingIn(false);
+    }
+  };
+
+  const handleResendVerification = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email,
+      });
+      if (error) throw error;
+      toast.success('Verification email resent!');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to resend verification email');
     }
   };
 
@@ -799,7 +761,7 @@ function AppContent() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `swiftlink-bulk-${Date.now()}.txt`;
+    a.download = `cutly-bulk-${Date.now()}.txt`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success('Download started');
@@ -942,6 +904,7 @@ function AppContent() {
         onLogin={handleLogin} 
         onSignup={handleSignup}
         onResetPassword={handleResetPassword}
+        onResendVerification={handleResendVerification}
         isLoggingIn={isLoggingIn} 
       />
     );
@@ -1613,7 +1576,7 @@ function AppContent() {
                         <tbody className="divide-y dark:divide-white/5">
                           {bulkUrls.map((bUrl, i) => (
                             <tr 
-                              key={`${bUrl}-${i}`}
+                              key={i}
                               className={cn(
                                 "transition-colors group",
                                 theme === 'dark' ? "hover:bg-white/5" : "hover:bg-gray-50"
@@ -1694,24 +1657,6 @@ function AppContent() {
               onClear={() => setIsClearHistoryModalOpen(true)}
               openShareModal={openShareModal}
               openQrModal={openQrModal}
-              openEditModal={(link) => setSelectedLink({
-                id: link.id,
-                originalUrl: link.originalUrl,
-                shortUrl: link.shortUrl,
-                clicks: link.clicks || 0,
-                expiresAt: link.expiresAt || null,
-                domainName: null,
-                createdAt: new Date(link.timestamp).toISOString()
-              })}
-            />
-
-            <LinkDetailsModal
-              isOpen={!!selectedLink}
-              onClose={() => setSelectedLink(null)}
-              link={selectedLink}
-              theme={theme}
-              onDelete={deleteFromHistory}
-              onUpdate={handleUpdateLink}
             />
 
             {/* Clear History Modal */}
@@ -1768,15 +1713,13 @@ function AppContent() {
             setTheme={setTheme}
             domains={domains}
             defaultDomainId={selectedDomainId}
-            setDefaultDomainId={handleSetDefaultDomainId}
+            setDefaultDomainId={setSelectedDomainId}
             onLogout={handleLogout}
             onUpgrade={() => handleUpgrade('pro')}
             onUpdate={(updatedUser) => setUser(prev => prev ? { ...prev, ...updatedUser } : null)}
             apiKeys={apiKeys}
             onGenerateApiKey={handleGenerateApiKey}
             onDeleteApiKey={handleDeleteApiKey}
-            customErrorMessages={customErrorMessages}
-            setCustomErrorMessages={setCustomErrorMessages}
             onDismissMessage={handleDismissMessage}
           />
         ) : view === 'admin' ? (

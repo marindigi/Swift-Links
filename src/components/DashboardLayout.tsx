@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link2, BarChart2, Sparkles, Globe, Key, Shield, User as UserIcon, LogOut, Sun, Moon, MessageSquare, Menu, X } from 'lucide-react';
+import React from 'react';
+import { Link2, BarChart2, Sparkles, Globe, Key, Shield, User as UserIcon, LogOut, Sun, Moon, MessageSquare } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { User } from '../types';
 import { ExpirationBanner } from './ExpirationBanner';
@@ -25,13 +25,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   onLogout,
   onFetchAnalytics
 }) => {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  const handleNavClick = (newView: string) => {
-    setView(newView);
-    setIsMobileMenuOpen(false);
-  };
-
   return (
     <div className={cn(
       "min-h-screen transition-colors duration-500 selection:bg-brand/30 font-sans overflow-x-hidden relative",
@@ -41,22 +34,18 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className={cn(
           "absolute top-[-20%] left-[-10%] w-[60%] h-[60%] blur-[150px] rounded-full transition-opacity duration-1000",
-          theme === 'dark' ? "bg-brand/10 opacity-100" : "bg-brand/5 opacity-50"
+          theme === 'dark' ? "bg-brand/5 opacity-100" : "bg-brand/5 opacity-50"
         )} />
         <div className={cn(
           "absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] blur-[150px] rounded-full transition-opacity duration-1000",
-          theme === 'dark' ? "bg-blue-500/10 opacity-100" : "bg-blue-500/5 opacity-50"
-        )} />
-        <div className={cn(
-          "absolute top-[30%] right-[10%] w-[40%] h-[40%] blur-[120px] rounded-full transition-opacity duration-1000",
-          theme === 'dark' ? "bg-emerald-500/5 opacity-100" : "bg-emerald-500/2 opacity-50"
+          theme === 'dark' ? "bg-blue-500/5 opacity-100" : "bg-blue-500/5 opacity-50"
         )} />
       </div>
 
       {/* Sidebar (Desktop) */}
       <aside className={cn(
         "fixed left-0 top-0 bottom-0 z-50 w-64 border-r backdrop-blur-xl transition-all duration-500 hidden lg:flex flex-col",
-        theme === 'dark' ? "bg-[#050505]/80 border-white/5" : "bg-white/80 border-gray-200"
+        theme === 'dark' ? "bg-[#111111]/80 border-white/5" : "bg-white/80 border-gray-200"
       )}>
         <div className="p-6 flex items-center gap-3 mb-8">
           <div className="w-10 h-10 bg-brand rounded-xl flex items-center justify-center text-white shadow-lg shadow-brand/20">
@@ -72,7 +61,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
               view === 'home' 
                 ? "bg-brand text-white shadow-lg shadow-brand/20" 
-                : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                : "text-gray-400 hover:text-gray-100 hover:bg-white/5"
             )}
           >
             <Link2 size={18} />
@@ -87,7 +76,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
               view === 'analytics' 
                 ? "bg-brand text-white shadow-lg shadow-brand/20" 
-                : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                : "text-gray-400 hover:text-gray-100 hover:bg-white/5"
             )}
           >
             <BarChart2 size={18} />
@@ -99,7 +88,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
               view === 'tasks' 
                 ? "bg-brand text-white shadow-lg shadow-brand/20" 
-                : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                : "text-gray-400 hover:text-gray-100 hover:bg-white/5"
             )}
           >
             <Sparkles size={18} />
@@ -111,14 +100,14 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
               view === 'support' 
                 ? "bg-brand text-white shadow-lg shadow-brand/20" 
-                : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                : "text-gray-400 hover:text-gray-100 hover:bg-white/5"
             )}
           >
             <MessageSquare size={18} />
             <span>Support</span>
           </button>
           <div className="py-4">
-            <div className="h-px bg-gray-200 dark:bg-white/5 mx-4" />
+            <div className="h-px bg-white/5 mx-4" />
           </div>
           <button
             onClick={() => setView('domains')}
@@ -126,7 +115,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
               view === 'domains' 
                 ? "bg-brand text-white shadow-lg shadow-brand/20" 
-                : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                : "text-gray-400 hover:text-gray-100 hover:bg-white/5"
             )}
           >
             <Globe size={18} />
@@ -138,7 +127,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
               view === 'api-keys' 
                 ? "bg-brand text-white shadow-lg shadow-brand/20" 
-                : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                : "text-gray-400 hover:text-gray-100 hover:bg-white/5"
             )}
           >
             <Key size={18} />
@@ -151,7 +140,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
                 view === 'admin' 
                   ? "bg-brand text-white shadow-lg shadow-brand/20" 
-                  : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                  : "text-gray-400 hover:text-gray-100 hover:bg-white/5"
               )}
             >
               <Shield size={18} />
@@ -167,7 +156,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
               view === 'profile' 
                 ? "bg-brand text-white shadow-lg shadow-brand/20" 
-                : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                : "text-gray-400 hover:text-gray-100 hover:bg-white/5"
             )}
           >
             <UserIcon size={18} />
@@ -175,7 +164,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </button>
           <button
             onClick={onLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-red-400 hover:bg-red-500/10 transition-all"
           >
             <LogOut size={18} />
             <span>Sign Out</span>
@@ -185,17 +174,17 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
       {/* Mobile Nav */}
       <nav className={cn(
-        "fixed bottom-0 left-0 right-0 z-50 border-t backdrop-blur-xl lg:hidden flex items-center justify-around px-2 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]",
+        "fixed bottom-0 left-0 right-0 z-50 border-t backdrop-blur-xl lg:hidden flex items-center justify-around px-2 py-3",
         theme === 'dark' ? "bg-[#050505]/90 border-white/5" : "bg-white/90 border-gray-200"
       )}>
         <button
           onClick={() => setView('home')}
           className={cn(
-            "flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all min-w-[64px]",
+            "flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all",
             view === 'home' ? "text-brand" : "text-gray-500"
           )}
         >
-          <Link2 size={24} />
+          <Link2 size={20} />
           <span className="text-[10px] font-bold uppercase tracking-wider">Home</span>
         </button>
         <button
@@ -204,31 +193,31 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             onFetchAnalytics();
           }}
           className={cn(
-            "flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all min-w-[64px]",
+            "flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all",
             view === 'analytics' ? "text-brand" : "text-gray-500"
           )}
         >
-          <BarChart2 size={24} />
+          <BarChart2 size={20} />
           <span className="text-[10px] font-bold uppercase tracking-wider">Stats</span>
         </button>
         <button
           onClick={() => setView('tasks')}
           className={cn(
-            "flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all min-w-[64px]",
+            "flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all",
             view === 'tasks' ? "text-brand" : "text-gray-500"
           )}
         >
-          <Sparkles size={24} />
+          <Sparkles size={20} />
           <span className="text-[10px] font-bold uppercase tracking-wider">Tasks</span>
         </button>
         <button
           onClick={() => setView('profile')}
           className={cn(
-            "flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all min-w-[64px]",
+            "flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all",
             view === 'profile' ? "text-brand" : "text-gray-500"
           )}
         >
-          <UserIcon size={24} />
+          <UserIcon size={20} />
           <span className="text-[10px] font-bold uppercase tracking-wider">Me</span>
         </button>
       </nav>
@@ -245,15 +234,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       )}>
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 lg:hidden">
-            <button
-              onClick={() => setIsMobileMenuOpen(true)}
-              className={cn(
-                "p-2 -ml-2 rounded-xl transition-all",
-                theme === 'dark' ? "hover:bg-white/10 text-gray-400" : "hover:bg-gray-100 text-gray-600"
-              )}
-            >
-              <Menu size={20} />
-            </button>
             <div className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center text-white shadow-lg shadow-brand/20">
               <Link2 size={18} />
             </div>
@@ -306,162 +286,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         </div>
       </header>
 
-      {/* Mobile Menu Overlay */}
-      {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-[100] lg:hidden">
-          <div 
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setIsMobileMenuOpen(false)}
-          />
-          <div className={cn(
-            "absolute top-0 left-0 bottom-0 w-72 p-6 flex flex-col transition-transform duration-300 transform",
-            theme === 'dark' ? "bg-[#050505] border-r border-white/5" : "bg-white border-r border-gray-200"
-          )}>
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-brand rounded-xl flex items-center justify-center text-white shadow-lg shadow-brand/20">
-                  <Link2 size={22} />
-                </div>
-                <span className="font-display font-bold text-xl tracking-tight">Cutly</span>
-              </div>
-              <button 
-                onClick={() => setIsMobileMenuOpen(false)}
-                className={cn(
-                  "p-2 rounded-xl transition-all",
-                  theme === 'dark' ? "hover:bg-white/10 text-gray-400" : "hover:bg-gray-100 text-gray-600"
-                )}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <nav className="flex-1 space-y-1.5 overflow-y-auto custom-scrollbar">
-              <button
-                onClick={() => handleNavClick('home')}
-                className={cn(
-                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
-                  view === 'home' 
-                    ? "bg-brand text-white shadow-lg shadow-brand/20" 
-                    : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
-                )}
-              >
-                <Link2 size={18} />
-                <span>Dashboard</span>
-              </button>
-              <button
-                onClick={() => {
-                  onFetchAnalytics();
-                  handleNavClick('analytics');
-                }}
-                className={cn(
-                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
-                  view === 'analytics' 
-                    ? "bg-brand text-white shadow-lg shadow-brand/20" 
-                    : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
-                )}
-              >
-                <BarChart2 size={18} />
-                <span>Analytics</span>
-              </button>
-              <button
-                onClick={() => handleNavClick('tasks')}
-                className={cn(
-                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
-                  view === 'tasks' 
-                    ? "bg-brand text-white shadow-lg shadow-brand/20" 
-                    : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
-                )}
-              >
-                <Sparkles size={18} />
-                <span>Tasks</span>
-              </button>
-              <button
-                onClick={() => handleNavClick('support')}
-                className={cn(
-                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
-                  view === 'support' 
-                    ? "bg-brand text-white shadow-lg shadow-brand/20" 
-                    : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
-                )}
-              >
-                <MessageSquare size={18} />
-                <span>Support</span>
-              </button>
-              <div className="py-4">
-                <div className="h-px bg-gray-200 dark:bg-white/5 mx-4" />
-              </div>
-              <button
-                onClick={() => handleNavClick('domains')}
-                className={cn(
-                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
-                  view === 'domains' 
-                    ? "bg-brand text-white shadow-lg shadow-brand/20" 
-                    : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
-                )}
-              >
-                <Globe size={18} />
-                <span>Custom Domains</span>
-              </button>
-              <button
-                onClick={() => handleNavClick('api-keys')}
-                className={cn(
-                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
-                  view === 'api-keys' 
-                    ? "bg-brand text-white shadow-lg shadow-brand/20" 
-                    : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
-                )}
-              >
-                <Key size={18} />
-                <span>API Keys</span>
-              </button>
-              {user?.role === 'admin' && (
-                <button
-                  onClick={() => handleNavClick('admin')}
-                  className={cn(
-                    "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
-                    view === 'admin' 
-                      ? "bg-brand text-white shadow-lg shadow-brand/20" 
-                      : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
-                  )}
-                >
-                  <Shield size={18} />
-                  <span>Admin Panel</span>
-                </button>
-              )}
-            </nav>
-
-            <div className="pt-4 space-y-2 border-t border-gray-200 dark:border-white/5 mt-auto">
-              <button
-                onClick={() => handleNavClick('profile')}
-                className={cn(
-                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
-                  view === 'profile' 
-                    ? "bg-brand text-white shadow-lg shadow-brand/20" 
-                    : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
-                )}
-              >
-                <UserIcon size={18} />
-                <span>Profile</span>
-              </button>
-              <button
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  onLogout();
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
-              >
-                <LogOut size={18} />
-                <span>Sign Out</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Main Content */}
       <main className={cn(
-        "relative z-10 pb-24 lg:pb-12 px-6 max-w-7xl mx-auto min-h-screen flex flex-col transition-all duration-500 lg:ml-64 bg-gradient-to-br",
-        theme === 'dark' ? "from-[#0a0a0a] to-[#050505]" : "from-white to-gray-50",
+        "relative z-10 pb-24 lg:pb-12 px-6 max-w-7xl mx-auto min-h-screen flex flex-col transition-all duration-500 lg:ml-64",
         user && user.expiresAt && user.plan !== 'free' && 
         Math.ceil((new Date(user.expiresAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) <= 7 && 
         Math.ceil((new Date(user.expiresAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) > 0 

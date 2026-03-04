@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { History, Search, ArrowUpDown, Trash2, Copy, Share2, ExternalLink, X, Sparkles, ChevronDown, Download, QrCode, Clock, MousePointer2, Loader2, Edit2 } from 'lucide-react';
+import { History, Search, ArrowUpDown, Trash2, Copy, Share2, ExternalLink, X, Sparkles, ChevronDown, Download, QrCode, Clock, MousePointer2, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -17,7 +17,6 @@ interface HistoryListProps {
   onClear: () => void;
   openShareModal: (url: string) => void;
   openQrModal: (url: string) => void;
-  openEditModal: (link: HistoryItem) => void;
 }
 
 export const HistoryList: React.FC<HistoryListProps> = ({ 
@@ -26,12 +25,10 @@ export const HistoryList: React.FC<HistoryListProps> = ({
   onDelete, 
   onClear,
   openShareModal,
-  openQrModal,
-  openEditModal
+  openQrModal
 }) => {
   const [historySearch, setHistorySearch] = useState('');
   const [filterExpiresAt, setFilterExpiresAt] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'individual' | 'bulk'>('all');
   const [historySortBy, setHistorySortBy] = useState<'timestamp' | 'originalUrl' | 'shortUrl' | 'clicks'>('timestamp');
   const [historySortOrder, setHistorySortOrder] = useState<'asc' | 'desc'>('desc');
   const [confirmDeleteHistoryId, setConfirmDeleteHistoryId] = useState<string | null>(null);
@@ -43,8 +40,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
     .filter(item => 
       ((item.originalUrl || '').toLowerCase().includes(historySearch.toLowerCase()) ||
       (item.shortUrl || '').toLowerCase().includes(historySearch.toLowerCase())) &&
-      (filterExpiresAt ? item.expiresAt?.startsWith(filterExpiresAt) : true) &&
-      (filterType === 'all' ? true : filterType === 'bulk' ? item.isBulk : !item.isBulk)
+      (filterExpiresAt ? item.expiresAt?.startsWith(filterExpiresAt) : true)
     )
     .sort((a, b) => {
       let comparison = 0;
@@ -86,7 +82,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
-          <div className="relative w-full sm:flex-1 min-w-[140px] md:flex-none md:w-48">
+          <div className="relative flex-1 min-w-[200px] md:flex-none">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
             <input 
               type="text"
@@ -94,7 +90,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
               value={historySearch}
               onChange={(e) => setHistorySearch(e.target.value)}
               className={cn(
-                "pl-9 pr-4 py-2 rounded-xl border text-xs focus:ring-2 focus:ring-brand/50 outline-none transition-all w-full",
+                "pl-9 pr-4 py-2 rounded-xl border text-xs focus:ring-2 focus:ring-brand/50 outline-none transition-all w-full md:w-48",
                 theme === 'dark' ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"
               )}
             />
@@ -108,47 +104,29 @@ export const HistoryList: React.FC<HistoryListProps> = ({
             )}
           </div>
 
-            <div className="relative flex-1 min-w-[120px] md:flex-none md:w-32">
-              <select 
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value as any)}
-                className={cn(
-                  "px-4 py-2 rounded-xl border text-xs focus:ring-2 focus:ring-brand/50 outline-none transition-all w-full appearance-none",
-                  theme === 'dark' ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"
-                )}
-              >
-                <option value="all">All Types</option>
-                <option value="individual">Individual</option>
-                <option value="bulk">Bulk</option>
-              </select>
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
-                <ChevronDown size={12} />
-              </div>
-            </div>
-
-            <div className="relative flex-1 min-w-[130px] md:flex-none md:w-40">
-              <input 
-                type="date"
-                value={filterExpiresAt}
-                onChange={(e) => setFilterExpiresAt(e.target.value)}
-                className={cn(
-                  "px-4 py-2 rounded-xl border text-xs focus:ring-2 focus:ring-brand/50 outline-none transition-all w-full",
-                  theme === 'dark' ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900",
-                  !filterExpiresAt && "text-gray-400"
-                )}
-                title="Filter by Expiration Date"
-              />
-              {filterExpiresAt && (
-                <button 
-                  onClick={() => setFilterExpiresAt('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                >
-                  <X size={12} />
-                </button>
+          <div className="relative flex-1 min-w-[150px] md:flex-none">
+            <input 
+              type="date"
+              value={filterExpiresAt}
+              onChange={(e) => setFilterExpiresAt(e.target.value)}
+              className={cn(
+                "px-4 py-2 rounded-xl border text-xs focus:ring-2 focus:ring-brand/50 outline-none transition-all w-full md:w-40",
+                theme === 'dark' ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900",
+                !filterExpiresAt && "text-gray-400"
               )}
-            </div>
+              title="Filter by Expiration Date"
+            />
+            {filterExpiresAt && (
+              <button 
+                onClick={() => setFilterExpiresAt('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
           
-          <div className="flex items-center gap-2 bg-gray-50 dark:bg-white/5 p-1 rounded-xl border border-gray-200 dark:border-white/10 ml-auto sm:ml-0">
+          <div className="flex items-center gap-2 bg-gray-50 dark:bg-white/5 p-1 rounded-xl border border-gray-200 dark:border-white/10">
             <div className="flex items-center gap-1 px-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
               <ArrowUpDown size={10} />
               <span className="hidden xs:inline">Sort</span>
@@ -214,10 +192,10 @@ export const HistoryList: React.FC<HistoryListProps> = ({
             </button>
           </div>
         )}
-        {filteredHistory.map((item, idx) => (
+        {filteredHistory.map((item) => (
           <motion.div
             layout
-            key={`${item.id}-${idx}`}
+            key={item.id}
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
@@ -227,9 +205,9 @@ export const HistoryList: React.FC<HistoryListProps> = ({
               expandedBulkId === item.id && (theme === 'dark' ? "bg-black/40 border-emerald-500/30" : "bg-emerald-50/30 border-emerald-200")
             )}
           >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-3 mb-1">
+                <div className="flex items-center gap-3 mb-1">
                   <a 
                     href={item.shortUrl} 
                     target="_blank" 
@@ -241,7 +219,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                   >
                     {item.shortUrl?.replace ? item.shortUrl.replace(/^https?:\/\//, '') : item.shortUrl}
                   </a>
-                  <div className="flex flex-wrap items-center gap-1.5">
+                  <div className="flex items-center gap-1.5">
                     {item.isBulk && (
                       <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand/10 border border-brand/20">
                         <Sparkles size={10} className="text-brand" />
@@ -271,19 +249,19 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                     )}
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-2">
                   <p className="text-[11px] text-gray-500 truncate max-w-md font-medium">
                     {item.originalUrl}
                   </p>
-                  <span className="hidden sm:inline text-[10px] text-gray-300 dark:text-gray-600">•</span>
+                  <span className="text-[10px] text-gray-300 dark:text-gray-600">•</span>
                   <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
                     {new Date(item.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                   </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5 self-start sm:self-auto">
-                <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl bg-gray-100/50 dark:bg-white/5 border border-gray-200/50 dark:border-white/5 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-300">
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1 p-1 rounded-xl bg-gray-100/50 dark:bg-white/5 border border-gray-200/50 dark:border-white/5 opacity-0 group-hover:opacity-100 transition-all duration-300">
                   {confirmDeleteHistoryId === item.id ? (
                     <div className="flex items-center gap-1 px-1 animate-in fade-in slide-in-from-right-2">
                       <button 
@@ -327,16 +305,6 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                           <ChevronDown size={16} className={cn("transition-transform duration-300", expandedBulkId === item.id && "rotate-180")} />
                         </button>
                       )}
-                      <button
-                        onClick={() => openEditModal(item)}
-                        className={cn(
-                          "p-2 rounded-lg transition-all",
-                          theme === 'dark' ? "hover:bg-white/10 text-gray-400 hover:text-white" : "hover:bg-white text-gray-500 hover:text-gray-900 shadow-sm"
-                        )}
-                        title="Edit"
-                      >
-                        <Edit2 size={16} />
-                      </button>
                       <button
                         onClick={() => openQrModal(item.shortUrl)}
                         className={cn(
@@ -460,7 +428,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                             const url = URL.createObjectURL(blob);
                             const a = document.createElement('a');
                             a.href = url;
-                            a.download = `swiftlink-bulk-${item.id}.txt`;
+                            a.download = `cutly-bulk-${item.id}.txt`;
                             a.click();
                             URL.revokeObjectURL(url);
                           }}
@@ -478,7 +446,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                           : (bUrl?.split ? bUrl.split('/').pop() : '') || '';
                         
                         return (
-                          <div key={`${item.id}-${idx}-${bUrl}`} className="flex items-center justify-between group/bulk-item py-0.5">
+                          <div key={idx} className="flex items-center justify-between group/bulk-item py-0.5">
                             <span className="text-[10px] font-mono text-gray-500 truncate flex-1">
                               {displayValue}
                             </span>
