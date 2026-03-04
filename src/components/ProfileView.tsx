@@ -52,6 +52,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -133,15 +134,34 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPassword) return;
+    if (newPassword !== confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+    if (!currentPassword) {
+      toast.error('Please enter your current password');
+      return;
+    }
+
     setIsChangingPassword(true);
     try {
+      // Verify current password by signing in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user?.email || '',
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        throw new Error('Incorrect current password');
+      }
+
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
 
       toast.success('Password changed successfully');
-      alert('Your password has been updated successfully.');
       setCurrentPassword('');
       setNewPassword('');
+      setConfirmPassword('');
     } catch (error: any) {
       toast.error(error.message || 'Failed to change password');
     } finally {
@@ -568,9 +588,22 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 placeholder="••••••••"
               />
             </div>
+            <div>
+              <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1 block">Confirm New Password</label>
+              <input 
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className={cn(
+                  "w-full border rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand/50 outline-none transition-all",
+                  theme === 'dark' ? "bg-white/5 border-white/10 text-white" : "bg-gray-50 border-gray-200 text-gray-900"
+                )}
+                placeholder="••••••••"
+              />
+            </div>
             <button 
               type="submit"
-              disabled={isChangingPassword || !newPassword}
+              disabled={isChangingPassword || !newPassword || !confirmPassword}
               className="w-full bg-brand text-white py-3 rounded-xl font-bold hover:bg-brand-hover transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isChangingPassword ? <Loader2 className="animate-spin" size={18} /> : 'Update Password'}

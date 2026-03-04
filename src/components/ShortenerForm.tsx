@@ -254,25 +254,25 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, 
           <button
             onClick={() => setIsBulkMode(false)}
             className={cn(
-              "flex-1 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2",
+              "flex-1 py-3 sm:py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 touch-manipulation",
               !isBulkMode 
                 ? "bg-white dark:bg-white/10 text-brand shadow-sm border border-gray-200 dark:border-white/10" 
                 : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300"
             )}
           >
-            <Link2 size={14} />
+            <Link2 size={16} />
             Single Link
           </button>
           <button
             onClick={() => setIsBulkMode(true)}
             className={cn(
-              "flex-1 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2",
+              "flex-1 py-3 sm:py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 touch-manipulation",
               isBulkMode 
                 ? "bg-white dark:bg-white/10 text-brand shadow-sm border border-gray-200 dark:border-white/10" 
                 : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300"
             )}
           >
-            <History size={14} />
+            <History size={16} />
             Bulk Mode
           </button>
         </div>

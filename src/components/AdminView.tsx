@@ -356,8 +356,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user) => (
-                  <tr key={user.id} className={cn(
+                filteredUsers.map((user, idx) => (
+                  <tr key={`${user.id}-${idx}`} className={cn(
                     "transition-colors",
                     theme === 'dark' ? "hover:bg-white/5" : "hover:bg-gray-50"
                   )}>
@@ -624,8 +624,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
       </>
       ) : activeTab === 'settings' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {Array.isArray(settings) && settings.map((s) => (
-            <div key={s.key} className={cn(
+          {Array.isArray(settings) && settings.map((s, idx) => (
+            <div key={`${s.key}-${idx}`} className={cn(
               "p-6 rounded-3xl border",
               theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-gray-100 shadow-sm"
             )}>
@@ -660,8 +660,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {Array.isArray(features) && features.map((f) => (
-              <div key={f.id} className={cn(
+            {Array.isArray(features) && features.map((f, idx) => (
+              <div key={`${f.id}-${idx}`} className={cn(
                 "p-6 rounded-3xl border",
                 theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-gray-100 shadow-sm"
               )}>
@@ -730,8 +730,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
             </button>
           </div>
           <div className="space-y-4">
-            {Array.isArray(faqs) && faqs.map((faq) => (
-              <div key={faq.id} className={cn(
+            {Array.isArray(faqs) && faqs.map((faq, idx) => (
+              <div key={`${faq.id}-${idx}`} className={cn(
                 "p-6 rounded-3xl border",
                 theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-gray-100 shadow-sm"
               )}>

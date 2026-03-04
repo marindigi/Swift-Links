@@ -159,7 +159,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   const countryData = Object.entries(countryDist)
     .map(([name, value]) => ({ name, value }))
     .sort((a: any, b: any) => b.value - a.value)
-    .slice(0, 5);
+    .slice(0, 7);
 
   // Distribution by Referrer
   const referrerDist = analyticsData.clicks.reduce((acc: any, click: any) => {
@@ -179,7 +179,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   const referrerData = Object.entries(referrerDist)
     .map(([name, value]) => ({ name, value }))
     .sort((a: any, b: any) => b.value - a.value)
-    .slice(0, 5);
+    .slice(0, 7);
 
   // Distribution by Browser
   const browserDist = analyticsData.clicks.reduce((acc: any, click: any) => {
@@ -298,10 +298,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto self-end md:self-center relative z-10">
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto self-end md:self-center relative z-10">
           <button 
             onClick={handleFilter}
-            className="flex-1 md:flex-none px-8 py-2.5 bg-brand text-white rounded-xl text-[11px] font-black tracking-widest hover:bg-brand-hover transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20 uppercase"
+            className="w-full sm:w-auto sm:flex-1 md:flex-none px-8 py-3 sm:py-2.5 bg-brand text-white rounded-xl text-[11px] font-black tracking-widest hover:bg-brand-hover transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20 uppercase touch-manipulation"
           >
             <Filter size={14} />
             Apply Filter
@@ -309,7 +309,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           <button 
             onClick={handleReset}
             className={cn(
-              "flex-1 md:flex-none px-6 py-2.5 rounded-xl text-[11px] font-black tracking-widest transition-all flex items-center justify-center gap-2 border uppercase",
+              "w-full sm:w-auto sm:flex-1 md:flex-none px-6 py-3 sm:py-2.5 rounded-xl text-[11px] font-black tracking-widest transition-all flex items-center justify-center gap-2 border uppercase touch-manipulation",
               theme === 'dark' ? "bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10" : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50"
             )}
           >

@@ -48,6 +48,9 @@ export const LinkDetailsModal: React.FC<LinkDetailsModalProps> = ({
     try {
       await onUpdate(link.id, { originalUrl, expiresAt: expiresAt || null });
       setIsEditing(false);
+    } catch (error) {
+      // Error is handled by the parent component or apiClient, but we need to catch it here to prevent unhandled rejection
+      console.error('Failed to update link:', error);
     } finally {
       setIsUpdating(false);
     }

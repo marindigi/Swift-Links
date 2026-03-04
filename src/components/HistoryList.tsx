@@ -86,7 +86,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[200px] md:flex-none">
+          <div className="relative w-full sm:flex-1 min-w-[140px] md:flex-none md:w-48">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
             <input 
               type="text"
@@ -94,7 +94,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
               value={historySearch}
               onChange={(e) => setHistorySearch(e.target.value)}
               className={cn(
-                "pl-9 pr-4 py-2 rounded-xl border text-xs focus:ring-2 focus:ring-brand/50 outline-none transition-all w-full md:w-48",
+                "pl-9 pr-4 py-2 rounded-xl border text-xs focus:ring-2 focus:ring-brand/50 outline-none transition-all w-full",
                 theme === 'dark' ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"
               )}
             />
@@ -108,12 +108,12 @@ export const HistoryList: React.FC<HistoryListProps> = ({
             )}
           </div>
 
-            <div className="relative flex-1 min-w-[150px] md:flex-none">
+            <div className="relative flex-1 min-w-[120px] md:flex-none md:w-32">
               <select 
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value as any)}
                 className={cn(
-                  "px-4 py-2 rounded-xl border text-xs focus:ring-2 focus:ring-brand/50 outline-none transition-all w-full md:w-32",
+                  "px-4 py-2 rounded-xl border text-xs focus:ring-2 focus:ring-brand/50 outline-none transition-all w-full appearance-none",
                   theme === 'dark' ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"
                 )}
               >
@@ -121,15 +121,18 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                 <option value="individual">Individual</option>
                 <option value="bulk">Bulk</option>
               </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+                <ChevronDown size={12} />
+              </div>
             </div>
 
-            <div className="relative flex-1 min-w-[150px] md:flex-none">
+            <div className="relative flex-1 min-w-[130px] md:flex-none md:w-40">
               <input 
                 type="date"
                 value={filterExpiresAt}
                 onChange={(e) => setFilterExpiresAt(e.target.value)}
                 className={cn(
-                  "px-4 py-2 rounded-xl border text-xs focus:ring-2 focus:ring-brand/50 outline-none transition-all w-full md:w-40",
+                  "px-4 py-2 rounded-xl border text-xs focus:ring-2 focus:ring-brand/50 outline-none transition-all w-full",
                   theme === 'dark' ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900",
                   !filterExpiresAt && "text-gray-400"
                 )}
@@ -145,7 +148,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
               )}
             </div>
           
-          <div className="flex items-center gap-2 bg-gray-50 dark:bg-white/5 p-1 rounded-xl border border-gray-200 dark:border-white/10">
+          <div className="flex items-center gap-2 bg-gray-50 dark:bg-white/5 p-1 rounded-xl border border-gray-200 dark:border-white/10 ml-auto sm:ml-0">
             <div className="flex items-center gap-1 px-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
               <ArrowUpDown size={10} />
               <span className="hidden xs:inline">Sort</span>
@@ -211,10 +214,10 @@ export const HistoryList: React.FC<HistoryListProps> = ({
             </button>
           </div>
         )}
-        {filteredHistory.map((item) => (
+        {filteredHistory.map((item, idx) => (
           <motion.div
             layout
-            key={item.id}
+            key={`${item.id}-${idx}`}
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
@@ -475,7 +478,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                           : (bUrl?.split ? bUrl.split('/').pop() : '') || '';
                         
                         return (
-                          <div key={`${item.id}-${idx}`} className="flex items-center justify-between group/bulk-item py-0.5">
+                          <div key={`${item.id}-${idx}-${bUrl}`} className="flex items-center justify-between group/bulk-item py-0.5">
                             <span className="text-[10px] font-mono text-gray-500 truncate flex-1">
                               {displayValue}
                             </span>

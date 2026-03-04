@@ -185,17 +185,17 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
       {/* Mobile Nav */}
       <nav className={cn(
-        "fixed bottom-0 left-0 right-0 z-50 border-t backdrop-blur-xl lg:hidden flex items-center justify-around px-2 py-3",
+        "fixed bottom-0 left-0 right-0 z-50 border-t backdrop-blur-xl lg:hidden flex items-center justify-around px-2 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]",
         theme === 'dark' ? "bg-[#050505]/90 border-white/5" : "bg-white/90 border-gray-200"
       )}>
         <button
           onClick={() => setView('home')}
           className={cn(
-            "flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all",
+            "flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all min-w-[64px]",
             view === 'home' ? "text-brand" : "text-gray-500"
           )}
         >
-          <Link2 size={20} />
+          <Link2 size={24} />
           <span className="text-[10px] font-bold uppercase tracking-wider">Home</span>
         </button>
         <button
@@ -204,31 +204,31 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             onFetchAnalytics();
           }}
           className={cn(
-            "flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all",
+            "flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all min-w-[64px]",
             view === 'analytics' ? "text-brand" : "text-gray-500"
           )}
         >
-          <BarChart2 size={20} />
+          <BarChart2 size={24} />
           <span className="text-[10px] font-bold uppercase tracking-wider">Stats</span>
         </button>
         <button
           onClick={() => setView('tasks')}
           className={cn(
-            "flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all",
+            "flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all min-w-[64px]",
             view === 'tasks' ? "text-brand" : "text-gray-500"
           )}
         >
-          <Sparkles size={20} />
+          <Sparkles size={24} />
           <span className="text-[10px] font-bold uppercase tracking-wider">Tasks</span>
         </button>
         <button
           onClick={() => setView('profile')}
           className={cn(
-            "flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all",
+            "flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all min-w-[64px]",
             view === 'profile' ? "text-brand" : "text-gray-500"
           )}
         >
-          <UserIcon size={20} />
+          <UserIcon size={24} />
           <span className="text-[10px] font-bold uppercase tracking-wider">Me</span>
         </button>
       </nav>
