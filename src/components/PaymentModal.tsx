@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, CheckCircle2, ShieldCheck, ArrowRight, Sparkles, Zap } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
@@ -21,8 +21,6 @@ interface PaymentModalProps {
 }
 
 export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onConfirm, plan, theme }) => {
-  const [isSuccess] = useState(false);
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -44,20 +42,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onC
               theme === 'dark' ? "bg-[#0a0a0a] border-white/10" : "bg-white border-gray-200"
             )}
           >
-            {isSuccess ? (
-              <div className="p-12 text-center">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: 'spring', damping: 12 }}
-                  className="w-24 h-24 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-8"
-                >
-                  <CheckCircle2 size={48} />
-                </motion.div>
-                <h2 className={cn("text-3xl font-display font-bold mb-3", theme === 'dark' ? "text-white" : "text-gray-900")}>Payment Received!</h2>
-                <p className="text-gray-500 text-lg">Your account is being upgraded to {plan.name}. Please wait a moment...</p>
-              </div>
-            ) : (
               <div className="flex flex-col md:flex-row">
                 {/* Left Side: Plan Info */}
                 <div className={cn(
@@ -149,7 +133,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onC
                   </p>
                 </div>
               </div>
-            )}
           </motion.div>
         </div>
       )}

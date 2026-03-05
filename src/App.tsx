@@ -164,12 +164,10 @@ function AppContent() {
   }, [user, view]);
 
   useEffect(() => {
-    fetchDomains();
-    fetchApiKeys();
     loadHistory();
     checkAuth();
 
-    // Global handler for unhandled promise rejections (e.g. API failures not caught locally)
+    // Global handler for unhandled promise rejections
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       event.preventDefault();
       const reason = event.reason;
@@ -177,7 +175,7 @@ function AppContent() {
       
       // Only show toast if it's an error we haven't already handled
       const message = reason?.message || String(reason);
-      if (!message.includes('aborted') && !message.includes('Canceled')) {
+      if (!message.includes('aborted') && !message.includes('Canceled') && !message.includes('Unauthorized')) {
         toast.error('An unexpected error occurred. Please try again.');
       }
     };
@@ -194,6 +192,12 @@ function AppContent() {
         try {
           const userData = await apiClient<User>('/api/auth/me');
           setUser(userData);
+          
+          // Fetch user-specific data now that we are authenticated
+          fetchDomains();
+          fetchApiKeys();
+          fetchAnalytics();
+
           if (userData.status === 'inactive') {
             toast.error('Your account is currently inactive. Please contact admin support.', {
               duration: 6000,
@@ -201,6 +205,7 @@ function AppContent() {
             });
           }
         } catch (e) {
+          console.error('Failed to fetch user profile:', e);
           setUser({ id: session.user.id, email: session.user.email || '' });
         }
         
@@ -214,10 +219,8 @@ function AppContent() {
         }
       }
     } catch (error) {
+      console.error('Auth check error:', error);
       setUser(null);
-      if (window.location.pathname !== '/' && window.location.pathname !== '/login' && window.location.pathname !== '/expired' && window.location.pathname !== '/not-found' && window.location.pathname !== '/update-password') {
-        window.history.replaceState(null, '', '/login');
-      }
     } finally {
       setIsCheckingAuth(false);
     }
@@ -226,6 +229,9 @@ function AppContent() {
       try {
         if (event === 'SIGNED_OUT' || !session) {
           setUser(null);
+          setDomains([]);
+          setApiKeys([]);
+          setAnalyticsData(null);
           if (window.location.pathname !== '/' && window.location.pathname !== '/login' && window.location.pathname !== '/expired' && window.location.pathname !== '/not-found' && window.location.pathname !== '/update-password') {
             window.history.replaceState(null, '', '/login');
           }
@@ -235,6 +241,11 @@ function AppContent() {
             if (!user || user.id !== session.user.id) {
               const userData = await apiClient<User>('/api/auth/me');
               setUser(userData);
+              
+              // Refresh data
+              fetchDomains();
+              fetchApiKeys();
+              fetchAnalytics();
               
               // Check for pending plan upgrade
               const pendingPlan = localStorage.getItem('pendingPlan');
@@ -254,6 +265,7 @@ function AppContent() {
               }
             }
           } catch (e) {
+            console.error('Failed to fetch user profile on auth change:', e);
             setUser({ id: session.user.id, email: session.user.email || '' });
           }
 
@@ -408,6 +420,9 @@ function AppContent() {
   };
 
   const fetchApiKeys = async () => {
+    // Only fetch API keys if user is logged in
+    if (!user) return;
+
     try {
       const data = await apiClient<ApiKey[]>('/api/keys', { showToast: false });
       if (Array.isArray(data)) {
@@ -417,7 +432,8 @@ function AppContent() {
         setApiKeys([]);
       }
     } catch (error) {
-      // Silent error
+      // Silent error - likely auth issue or network
+      console.debug('Failed to fetch API keys', error);
     }
   };
 

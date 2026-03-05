@@ -534,7 +534,13 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
                       {editingUserId === user.id ? (
                         <input
                           type="date"
-                          value={editForm.expiresAt ? new Date(editForm.expiresAt).toISOString().split('T')[0] : ''}
+                          value={(() => {
+                            try {
+                              return editForm.expiresAt ? new Date(editForm.expiresAt).toISOString().split('T')[0] : '';
+                            } catch {
+                              return '';
+                            }
+                          })()}
                           onChange={(e) => setEditForm({ ...editForm, expiresAt: e.target.value })}
                           className={cn(
                             "px-2 py-1 rounded-lg text-xs border outline-none focus:ring-2 focus:ring-brand/20 w-32",
@@ -544,7 +550,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
                       ) : (
                         <div className="flex flex-col gap-1">
                           <span className="text-xs text-gray-500">
-                            {user.expiresAt ? new Date(user.expiresAt).toLocaleDateString() : 'Never'}
+                            {user.expiresAt ? new Date(user.expiresAt).toLocaleDateString(undefined, { timeZone: 'UTC' }) : 'Never'}
                           </span>
                           {user.expiresAt && new Date(user.expiresAt) < new Date() && (
                             <span className="text-[10px] bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold uppercase w-fit">

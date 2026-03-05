@@ -82,8 +82,6 @@ db.exec(`
     avatar_url TEXT,
     role TEXT DEFAULT 'user',
     plan TEXT DEFAULT 'free',
-    emailVerified INTEGER DEFAULT 0,
-    verificationToken TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
@@ -103,14 +101,6 @@ try {
 } catch (e) {}
 try {
   db.exec("ALTER TABLE users ADD COLUMN avatar_url TEXT");
-} catch (e) {}
-try {
-  db.exec("ALTER TABLE users ADD COLUMN emailVerified INTEGER DEFAULT 0");
-  // Set existing users to verified
-  db.exec("UPDATE users SET emailVerified = 1 WHERE emailVerified = 0");
-} catch (e) {}
-try {
-  db.exec("ALTER TABLE users ADD COLUMN verificationToken TEXT");
 } catch (e) {}
 try {
   db.exec("ALTER TABLE urls ADD COLUMN expiresAt DATETIME");
@@ -547,6 +537,13 @@ async function startServer() {
     // If accessing protected routes (like analytics or keys) and is anonymous, return 401
     const protectedRoutes = ['/api/keys', '/api/analytics', '/api/admin'];
     if (req.user.isAnonymous && protectedRoutes.some(route => req.path.startsWith(route))) {
+      // Check if they have a valid Supabase token but it wasn't caught earlier
+      const authHeader = req.headers['authorization'];
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        // If they have a token, let the route handler deal with it or wait for the token to be verified
+        // This is a fallback in case the token verification failed but they still have a token
+        return res.status(401).json({ error: "Session expired or invalid. Please log in again." });
+      }
       return res.status(401).json({ error: "Authentication required" });
     }
 
@@ -603,19 +600,24 @@ async function startServer() {
       const startOfMonthStr = startOfMonth.toISOString();
 
       const usersWithUsage = users.map(user => {
-        const usage = db.prepare("SELECT COUNT(*) as count FROM urls WHERE userId = ? AND createdAt >= ?").get(user.id, startOfMonthStr) as any;
-        return {
-          ...user,
-          usage: {
-            linksThisMonth: usage?.count || 0
-          }
-        };
+        try {
+          const usage = db.prepare("SELECT COUNT(*) as count FROM urls WHERE userId = ? AND createdAt >= ?").get(user.id, startOfMonthStr) as any;
+          return {
+            ...user,
+            usage: {
+              linksThisMonth: usage?.count || 0
+            }
+          };
+        } catch (err) {
+          console.error(`[Admin] Failed to fetch usage for user ${user.id}:`, err);
+          return { ...user, usage: { linksThisMonth: 0 } };
+        }
       });
 
       res.json(usersWithUsage);
     } catch (error) {
-      console.error("Fetch users error:", error);
-      res.status(500).json({ error: "Failed to fetch users" });
+      console.error("[Admin] Fetch users error:", error);
+      res.status(500).json({ error: "Internal server error while fetching users" });
     }
   });
 
@@ -642,16 +644,22 @@ async function startServer() {
         values.push(expiresAt === '' ? null : expiresAt); 
       }
       
-      if (updates.length > 0) {
-        values.push(id);
-        const query = `UPDATE users SET ${updates.join(", ")} WHERE id = ?`;
-        db.prepare(query).run(...values);
+      if (updates.length === 0) {
+        return res.status(400).json({ error: "No fields provided for update" });
+      }
+
+      values.push(id);
+      const query = `UPDATE users SET ${updates.join(", ")} WHERE id = ?`;
+      const result = db.prepare(query).run(...values);
+      
+      if (result.changes === 0) {
+        return res.status(404).json({ error: "User not found" });
       }
       
       res.json({ success: true });
     } catch (error) {
-      console.error("Update user error:", error);
-      res.status(500).json({ error: "Failed to update user" });
+      console.error(`[Admin] Update user ${id} error:`, error);
+      res.status(500).json({ error: "Failed to update user details" });
     }
   });
 
@@ -700,9 +708,6 @@ async function startServer() {
     if (user) {
       console.log(`[Login] User found: ${user.email}, hasPassword: ${!!user.password}`);
       if (user.password && bcrypt.compareSync(password, user.password)) {
-        if (user.emailVerified === 0) {
-          return res.status(403).json({ error: "Please verify your email address before logging in." });
-        }
         console.log(`[Login] Password match for ${email}`);
         (req.session as any).userId = user.id;
         return res.json({ id: user.id, email: user.email });
@@ -716,108 +721,38 @@ async function startServer() {
     res.status(401).json({ error: "Invalid credentials" });
   });
 
-  app.post("/api/auth/register", async (req, res) => {
+  app.post("/api/auth/register", (req, res) => {
     const { email, password, name } = req.body;
     
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password are required" });
     }
 
+    if (password.length < 4) {
+      return res.status(400).json({ error: "Password must be at least 4 characters long" });
+    }
+
     const existingUser = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
     if (existingUser) {
-      return res.status(400).json({ error: "Email already exists" });
+      return res.status(400).json({ error: "An account with this email already exists" });
     }
 
     try {
       const id = nanoid();
       const hashedPassword = bcrypt.hashSync(password, 10);
-      const verificationToken = nanoid(32);
       
-      db.prepare("INSERT INTO users (id, email, password, name, emailVerified, verificationToken) VALUES (?, ?, ?, ?, 0, ?)").run(
+      db.prepare("INSERT INTO users (id, email, password, name) VALUES (?, ?, ?, ?)").run(
         id,
         email,
         hashedPassword,
-        name || null,
-        verificationToken
+        name || null
       );
 
-      // Send verification email
-      const verificationLink = `${req.protocol}://${req.get('host')}/api/auth/verify/${verificationToken}`;
-      const emailHtml = `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Welcome to Cutly!</h2>
-          <p>Please verify your email address to activate your account.</p>
-          <a href="${verificationLink}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Verify Email</a>
-          <p>Or copy this link: ${verificationLink}</p>
-        </div>
-      `;
-      
-      await sendEmail(email, "Verify your Cutly account", emailHtml);
-
-      res.json({ success: true, message: "Registration successful. Please check your email to verify your account." });
+      (req.session as any).userId = id;
+      res.json({ id, email, name });
     } catch (error) {
-      console.error("Registration error:", error);
-      res.status(500).json({ error: "Registration failed" });
-    }
-  });
-
-  app.get("/api/auth/verify/:token", (req, res) => {
-    const { token } = req.params;
-    
-    try {
-      const user = db.prepare("SELECT id FROM users WHERE verificationToken = ?").get(token) as any;
-      
-      if (!user) {
-        return res.status(400).send("Invalid or expired verification token.");
-      }
-      
-      db.prepare("UPDATE users SET emailVerified = 1, verificationToken = NULL WHERE id = ?").run(user.id);
-      
-      // Redirect to login page with success message
-      res.redirect("/login?verified=true");
-    } catch (error) {
-      console.error("Verification error:", error);
-      res.status(500).send("Verification failed.");
-    }
-  });
-
-  app.post("/api/auth/resend-verification", async (req, res) => {
-    const { email } = req.body;
-    
-    if (!email) {
-      return res.status(400).json({ error: "Email is required" });
-    }
-
-    try {
-      const user = db.prepare("SELECT id, emailVerified FROM users WHERE email = ?").get(email) as any;
-      
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-      
-      if (user.emailVerified === 1) {
-        return res.status(400).json({ error: "Email already verified" });
-      }
-
-      const verificationToken = nanoid(32);
-      db.prepare("UPDATE users SET verificationToken = ? WHERE id = ?").run(verificationToken, user.id);
-
-      const verificationLink = `${req.protocol}://${req.get('host')}/api/auth/verify/${verificationToken}`;
-      const emailHtml = `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Verify your email</h2>
-          <p>Please click the link below to verify your email address.</p>
-          <a href="${verificationLink}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Verify Email</a>
-          <p>Or copy this link: ${verificationLink}</p>
-        </div>
-      `;
-      
-      await sendEmail(email, "Verify your Cutly account", emailHtml);
-      
-      res.json({ success: true, message: "Verification email sent" });
-    } catch (error) {
-      console.error("Resend verification error:", error);
-      res.status(500).json({ error: "Failed to send verification email" });
+      console.error("[Auth] Registration error:", error);
+      res.status(500).json({ error: "Registration failed due to a server error" });
     }
   });
 
