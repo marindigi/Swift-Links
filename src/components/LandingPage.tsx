@@ -500,7 +500,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                   { text: 'API access', active: false },
                   { text: 'Advanced reporting', active: false },
                 ].map((feature) => (
-                  <div key={feature.text} className="flex items-center gap-3">
+                  <div key={`hobby-${feature.text}`} className="flex items-center gap-3">
                     {feature.active ? (
                       <div className="w-5 h-5 rounded-full bg-indigo-500/10 flex items-center justify-center shrink-0">
                         <Check size={12} className="text-indigo-500" />
@@ -572,7 +572,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                   { text: 'Full API Access', active: true },
                   { text: 'Priority Support', active: true },
                 ].map((feature) => (
-                  <div key={feature.text} className="flex items-center gap-3">
+                  <div key={`pro-${feature.text}`} className="flex items-center gap-3">
                     <div className="w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center shrink-0">
                       <Check size={12} className="text-white" />
                     </div>
@@ -628,7 +628,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                   { text: 'SSO & SAML integration', active: true },
                   { text: 'Custom data retention', active: true },
                 ].map((feature) => (
-                  <div key={feature.text} className="flex items-center gap-3">
+                  <div key={`enterprise-${feature.text}`} className="flex items-center gap-3">
                     <div className="w-5 h-5 rounded-full bg-violet-500/10 flex items-center justify-center shrink-0">
                       <Check size={12} className="text-violet-500" />
                     </div>

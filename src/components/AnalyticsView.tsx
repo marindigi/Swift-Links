@@ -566,7 +566,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-6 text-gray-500">Browser Distribution</h3>
           <div className="space-y-4">
             {browserData.map((item) => (
-              <div key={item.name} className="space-y-1.5">
+              <div key={`browser-${item.name}`} className="space-y-1.5">
                 <div className="flex justify-between text-[11px] font-bold">
                   <span className={theme === 'dark' ? "text-white" : "text-gray-900"}>{item.name}</span>
                   <span className="text-gray-500 font-mono">{item.value}</span>
@@ -591,7 +591,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-6 text-gray-500">Operating Systems</h3>
           <div className="space-y-4">
             {osData.map((item) => (
-              <div key={item.name} className="space-y-1.5">
+              <div key={`os-${item.name}`} className="space-y-1.5">
                 <div className="flex justify-between text-[11px] font-bold">
                   <span className={theme === 'dark' ? "text-white" : "text-gray-900"}>{item.name}</span>
                   <span className="text-gray-500 font-mono">{item.value}</span>
@@ -616,7 +616,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-6 text-gray-500">Device Types</h3>
           <div className="space-y-4">
             {deviceData.map((item) => (
-              <div key={item.name} className="space-y-1.5">
+              <div key={`device-${item.name}`} className="space-y-1.5">
                 <div className="flex justify-between text-[11px] font-bold">
                   <span className={theme === 'dark' ? "text-white" : "text-gray-900"}>{item.name}</span>
                   <span className="text-gray-500 font-mono">{item.value}</span>
