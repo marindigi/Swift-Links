@@ -174,13 +174,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
       {/* Mobile Nav */}
       <nav className={cn(
-        "fixed bottom-0 left-0 right-0 z-50 border-t backdrop-blur-xl lg:hidden flex items-center justify-around px-2 py-3",
+        "fixed bottom-0 left-0 right-0 z-50 border-t backdrop-blur-xl lg:hidden flex items-center gap-4 px-4 py-3 overflow-x-auto no-scrollbar",
         theme === 'dark' ? "bg-[#050505]/90 border-white/5" : "bg-white/90 border-gray-200"
       )}>
         <button
           onClick={() => setView('home')}
           className={cn(
-            "flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all",
+            "flex flex-col items-center gap-1 min-w-[60px] px-2 py-1 rounded-xl transition-all shrink-0",
             view === 'home' ? "text-brand" : "text-gray-500"
           )}
         >
@@ -193,7 +193,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             onFetchAnalytics();
           }}
           className={cn(
-            "flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all",
+            "flex flex-col items-center gap-1 min-w-[60px] px-2 py-1 rounded-xl transition-all shrink-0",
             view === 'analytics' ? "text-brand" : "text-gray-500"
           )}
         >
@@ -203,7 +203,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         <button
           onClick={() => setView('tasks')}
           className={cn(
-            "flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all",
+            "flex flex-col items-center gap-1 min-w-[60px] px-2 py-1 rounded-xl transition-all shrink-0",
             view === 'tasks' ? "text-brand" : "text-gray-500"
           )}
         >
@@ -211,9 +211,51 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           <span className="text-[10px] font-bold uppercase tracking-wider">Tasks</span>
         </button>
         <button
+          onClick={() => setView('domains')}
+          className={cn(
+            "flex flex-col items-center gap-1 min-w-[60px] px-2 py-1 rounded-xl transition-all shrink-0",
+            view === 'domains' ? "text-brand" : "text-gray-500"
+          )}
+        >
+          <Globe size={20} />
+          <span className="text-[10px] font-bold uppercase tracking-wider">Domains</span>
+        </button>
+        <button
+          onClick={() => setView('api-keys')}
+          className={cn(
+            "flex flex-col items-center gap-1 min-w-[60px] px-2 py-1 rounded-xl transition-all shrink-0",
+            view === 'api-keys' ? "text-brand" : "text-gray-500"
+          )}
+        >
+          <Key size={20} />
+          <span className="text-[10px] font-bold uppercase tracking-wider">API</span>
+        </button>
+        <button
+          onClick={() => setView('support')}
+          className={cn(
+            "flex flex-col items-center gap-1 min-w-[60px] px-2 py-1 rounded-xl transition-all shrink-0",
+            view === 'support' ? "text-brand" : "text-gray-500"
+          )}
+        >
+          <MessageSquare size={20} />
+          <span className="text-[10px] font-bold uppercase tracking-wider">Help</span>
+        </button>
+        {user?.role === 'admin' && (
+          <button
+            onClick={() => setView('admin')}
+            className={cn(
+              "flex flex-col items-center gap-1 min-w-[60px] px-2 py-1 rounded-xl transition-all shrink-0",
+              view === 'admin' ? "text-brand" : "text-gray-500"
+            )}
+          >
+            <Shield size={20} />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Admin</span>
+          </button>
+        )}
+        <button
           onClick={() => setView('profile')}
           className={cn(
-            "flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all",
+            "flex flex-col items-center gap-1 min-w-[60px] px-2 py-1 rounded-xl transition-all shrink-0",
             view === 'profile' ? "text-brand" : "text-gray-500"
           )}
         >

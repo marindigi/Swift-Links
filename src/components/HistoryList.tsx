@@ -269,6 +269,8 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                           setIsDeletingId(item.id);
                           try {
                             await onDelete(item.id);
+                          } catch (error) {
+                            toast.error('Failed to delete item');
                           } finally {
                             setIsDeletingId(null);
                             setConfirmDeleteHistoryId(null);

@@ -49,8 +49,8 @@ export const ClicksModal: React.FC<ClicksModalProps> = ({ isOpen, onClose, click
                   </tr>
                 </thead>
                 <tbody className={theme === 'dark' ? "text-white" : "text-gray-900"}>
-                  {clicks.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map((click, idx) => (
-                    <tr key={idx} className={cn("border-t", theme === 'dark' ? "border-white/5" : "border-gray-100")}>
+                  {[...clicks].sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map((click: any, idx: number) => (
+                    <tr key={click.id || idx} className={cn("border-t", theme === 'dark' ? "border-white/5" : "border-gray-100")}>
                       <td className="py-4">{new Date(click.timestamp).toLocaleString()}</td>
                       <td className="py-4 flex items-center gap-2">
                         <Globe size={12} />

@@ -132,7 +132,7 @@ function AppContent() {
   const [selectedPlan, setSelectedPlan] = useState<{ id: string; name: string; price: string } | null>(null);
   
   // Analytics state
-  const [view, setView] = useState<'home' | 'analytics' | 'profile' | 'admin' | 'tasks' | 'domains' | 'api-keys'>('home');
+  const [view, setView] = useState<'home' | 'analytics' | 'profile' | 'admin' | 'tasks' | 'domains' | 'api-keys' | 'support'>('home');
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
   

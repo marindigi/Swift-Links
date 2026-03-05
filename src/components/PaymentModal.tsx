@@ -127,9 +127,15 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onC
                   </p>
                   
                   <button 
-                    onClick={() => {
+                    onClick={async () => {
                       window.open('https://t.me/roeunmarin', '_blank');
-                      if (onConfirm) onConfirm();
+                      if (onConfirm) {
+                        try {
+                          await onConfirm();
+                        } catch (error) {
+                          console.error('Payment confirmation failed:', error);
+                        }
+                      }
                       onClose();
                     }}
                     className="w-full py-4 rounded-2xl bg-[#0088cc] text-white font-bold hover:bg-[#0077b3] shadow-lg shadow-[#0088cc]/20 transition-all flex items-center justify-center gap-2"
