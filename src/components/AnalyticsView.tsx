@@ -704,7 +704,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           </h3>
           <div className="space-y-3">
             {recentClicks.map((click: any, idx: number) => (
-              <div key={click.id || idx} className={cn(
+              <div key={click.id ? `click-${click.id}` : `click-idx-${idx}`} className={cn(
                 "flex items-center justify-between p-5 rounded-2xl border transition-all relative overflow-hidden group",
                 theme === 'dark' ? "bg-white/5 border-white/5" : "bg-gray-50 border-gray-100"
               )}>

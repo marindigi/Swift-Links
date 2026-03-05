@@ -52,8 +52,14 @@ const sendEmail = async (to: string, subject: string, html: string) => {
       console.log(`To: ${to}\nSubject: ${subject}\nBody: ${html}`);
       return;
     }
+    
+    // Ensure 'from' is never null/undefined
+    const fromAddress = process.env.SMTP_FROM && process.env.SMTP_FROM !== 'null' 
+      ? process.env.SMTP_FROM 
+      : '"Cutly" <noreply@cutly.us>';
+
     await transporter.sendMail({
-      from: process.env.SMTP_FROM || '"Cutly" <noreply@cutly.us>',
+      from: fromAddress,
       to,
       subject,
       html,
