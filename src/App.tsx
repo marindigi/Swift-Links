@@ -186,14 +186,12 @@ function AppContent() {
 
   const checkAuth = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        // Fetch extended user data (role, plan)
-        try {
-          const userData = await apiClient<User>('/api/auth/me');
+      // First try to authenticate via local API (which checks both local session and Supabase token)
+      try {
+        const userData = await apiClient<User>('/api/auth/me', { showToast: false });
+        if (userData && !('error' in userData)) {
           setUser(userData);
           
-          // Fetch user-specific data now that we are authenticated
           fetchDomains();
           fetchApiKeys();
           fetchAnalytics();
@@ -204,23 +202,26 @@ function AppContent() {
               icon: '🔒'
             });
           }
-        } catch (e) {
-          console.error('Failed to fetch user profile:', e);
-          setUser({ id: session.user.id, email: session.user.email || '' });
+          
+          if (window.location.pathname === '/login') {
+            window.history.replaceState(null, '', '/');
+          }
+          return;
         }
-        
-        if (window.location.pathname === '/login') {
-          window.history.replaceState(null, '', '/');
-        }
-      } else {
-        setUser(null);
-        if (window.location.pathname !== '/' && window.location.pathname !== '/login' && window.location.pathname !== '/expired' && window.location.pathname !== '/not-found' && window.location.pathname !== '/update-password') {
-          window.history.replaceState(null, '', '/login');
-        }
+      } catch (e) {
+        // Not logged in via local session or Supabase
+      }
+
+      setUser(null);
+      if (window.location.pathname !== '/' && window.location.pathname !== '/login' && window.location.pathname !== '/expired' && window.location.pathname !== '/not-found' && window.location.pathname !== '/update-password') {
+        window.history.replaceState(null, '', '/login');
       }
     } catch (error) {
       console.error('Auth check error:', error);
       setUser(null);
+      if (window.location.pathname !== '/' && window.location.pathname !== '/login' && window.location.pathname !== '/expired' && window.location.pathname !== '/not-found' && window.location.pathname !== '/update-password') {
+        window.history.replaceState(null, '', '/login');
+      }
     } finally {
       setIsCheckingAuth(false);
     }
@@ -228,6 +229,14 @@ function AppContent() {
     supabase.auth.onAuthStateChange(async (event, session) => {
       try {
         if (event === 'SIGNED_OUT' || !session) {
+          // Verify if local session is also invalid before clearing user
+          try {
+            const userData = await apiClient<User>('/api/auth/me', { showToast: false });
+            if (userData && !('error' in userData)) {
+              return; // Still logged in locally
+            }
+          } catch(e) {}
+          
           setUser(null);
           setDomains([]);
           setApiKeys([]);
@@ -237,17 +246,14 @@ function AppContent() {
           }
         } else if (session?.user) {
           try {
-            // Only fetch full user data if we don't have it or if it's a different user
             if (!user || user.id !== session.user.id) {
-              const userData = await apiClient<User>('/api/auth/me');
+              const userData = await apiClient<User>('/api/auth/me', { showToast: false });
               setUser(userData);
               
-              // Refresh data
               fetchDomains();
               fetchApiKeys();
               fetchAnalytics();
               
-              // Check for pending plan upgrade
               const pendingPlan = localStorage.getItem('pendingPlan');
               const pendingInterval = localStorage.getItem('pendingInterval') as 'monthly' | 'yearly';
               
@@ -296,6 +302,31 @@ function AppContent() {
 
     setIsLoggingIn(true);
     try {
+      // Try local login first
+      try {
+        const localData = await apiClient('/api/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ email: username, password }),
+          showToast: false
+        });
+        if (localData && localData.id) {
+          const userData = await apiClient<User>('/api/auth/me', { showToast: false });
+          if (userData && !('error' in userData)) {
+            setUser(userData);
+            fetchDomains();
+            fetchApiKeys();
+            fetchAnalytics();
+            if (window.location.pathname === '/login') {
+              window.history.replaceState(null, '', '/');
+            }
+            toast.success('Successfully logged in!');
+            return;
+          }
+        }
+      } catch (localError) {
+        // Local login failed, try Supabase
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email: username,
         password,
@@ -312,7 +343,16 @@ function AppContent() {
       }
       
       if (data.session) {
-        setUser({ id: data.user.id, email: data.user.email || '' });
+        const userData = await apiClient<User>('/api/auth/me', { showToast: false });
+        if (userData && !('error' in userData)) {
+          setUser(userData);
+          fetchDomains();
+          fetchApiKeys();
+          fetchAnalytics();
+          if (window.location.pathname === '/login') {
+            window.history.replaceState(null, '', '/');
+          }
+        }
         toast.success('Successfully logged in!');
       }
     } finally {
@@ -396,8 +436,13 @@ function AppContent() {
 
   const handleLogout = async () => {
     try {
-      await supabase.auth.signOut();
+      await apiClient('/api/auth/logout', { method: 'POST', showToast: false }).catch(() => {});
+      await supabase.auth.signOut().catch(() => {});
+      
       setUser(null);
+      setDomains([]);
+      setApiKeys([]);
+      setAnalyticsData(null);
       window.history.replaceState(null, '', '/login');
       toast.success('Logged out successfully');
     } catch (error) {
@@ -976,9 +1021,7 @@ function AppContent() {
           <div className="flex flex-col items-center justify-center gap-4 mt-8">
             <button 
               onClick={async () => {
-                await supabase.auth.signOut();
-                setUser(null);
-                window.history.replaceState(null, '', '/');
+                await handleLogout();
                 window.location.reload();
               }}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 bg-brand text-white rounded-xl font-bold hover:bg-brand-hover shadow-lg shadow-brand/20 transition-all"
