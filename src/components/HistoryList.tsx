@@ -448,7 +448,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                           : (bUrl?.split ? bUrl.split('/').pop() : '') || '';
                         
                         return (
-                          <div key={idx} className="flex items-center justify-between group/bulk-item py-0.5">
+                          <div key={`${item.id}-${idx}`} className="flex items-center justify-between group/bulk-item py-0.5">
                             <span className="text-[10px] font-mono text-gray-500 truncate flex-1">
                               {displayValue}
                             </span>
