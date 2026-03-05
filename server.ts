@@ -445,7 +445,7 @@ async function startServer() {
         let name = existingUser?.name || user.user_metadata?.full_name || user.user_metadata?.name || null;
         let avatar_url = existingUser?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
 
-        if (user.email === adminEmail || user.email === 'mcs.marinroeun@gmail.com' || user.email === 'marin@gmail.com') {
+        if (user.email === adminEmail || user.email === 'mcs.marinroeun@gmail.com') {
           role = 'admin';
           plan = 'enterprise';
           status = 'active';
@@ -515,7 +515,7 @@ async function startServer() {
         db.prepare("UPDATE users SET plan = ?, expiresAt = NULL WHERE id = ?").run(plan, user.id);
       }
 
-      if (user.email === adminEmail || user.email === 'mcs.marinroeun@gmail.com' || user.email === 'marin@gmail.com') {
+      if (user.email === adminEmail || user.email === 'mcs.marinroeun@gmail.com') {
         role = 'admin';
         plan = 'enterprise';
         // Ensure DB is updated
@@ -1608,9 +1608,6 @@ const checkDomainLimit = (userId: string) => {
     app.use(vite.middlewares);
   } else {
     app.use(express.static(path.resolve("dist")));
-    app.get("*", (_req, res) => {
-      res.sendFile(path.resolve("dist/index.html"));
-    });
   }
 
   // Public Settings & Stats
@@ -1745,6 +1742,13 @@ const checkDomainLimit = (userId: string) => {
       res.status(500).json({ error: "Failed to delete faq" });
     }
   });
+
+  // Catch-all route for SPA fallback in production
+  if (process.env.NODE_ENV === "production") {
+    app.get("*", (_req, res) => {
+      res.sendFile(path.resolve("dist/index.html"));
+    });
+  }
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
