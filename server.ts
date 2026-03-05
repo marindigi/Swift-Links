@@ -445,7 +445,7 @@ async function startServer() {
         let name = existingUser?.name || user.user_metadata?.full_name || user.user_metadata?.name || null;
         let avatar_url = existingUser?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
 
-        if (user.email === adminEmail || user.email === 'mcs.roeunmarin@gmail.com') {
+        if (user.email === adminEmail || user.email === 'mcs.marinroeun@gmail.com') {
           role = 'admin';
           plan = 'enterprise';
           status = 'active';
@@ -515,7 +515,7 @@ async function startServer() {
         db.prepare("UPDATE users SET plan = ?, expiresAt = NULL WHERE id = ?").run(plan, user.id);
       }
 
-      if (user.email === adminEmail || user.email === 'mcs.roeunmarin@gmail.com') {
+      if (user.email === adminEmail || user.email === 'mcs.marinroeun@gmail.com') {
         role = 'admin';
         plan = 'enterprise';
         // Ensure DB is updated
