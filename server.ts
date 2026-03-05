@@ -1607,7 +1607,7 @@ const checkDomainLimit = (userId: string) => {
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static("dist"));
+    app.use(express.static(path.resolve("dist")));
     app.get("*", (_req, res) => {
       res.sendFile(path.resolve("dist/index.html"));
     });
