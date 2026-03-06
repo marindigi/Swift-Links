@@ -118,7 +118,7 @@ const FAQItem: React.FC<{ faq: any, theme: 'light' | 'dark' }> = ({ faq, theme }
       initial={false}
       className={cn(
         "rounded-2xl border transition-all overflow-hidden",
-        theme === 'dark' ? "bg-[#111111] border-white/10" : "bg-white border-gray-200 shadow-sm"
+        theme === 'dark' ? "bg-[#111111] border-white/10 hover:border-white/20" : "bg-white border-gray-200 shadow-sm hover:border-gray-300"
       )}
     >
       <button 
@@ -256,31 +256,31 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
       {/* Background elements */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className={cn(
-          "absolute top-[-10%] left-[-10%] w-[40%] h-[40%] blur-[120px] rounded-full transition-opacity duration-1000",
-          theme === 'dark' ? "bg-indigo-500/10 opacity-100" : "bg-indigo-500/10 opacity-50"
+          "absolute top-[-10%] left-[-10%] w-[30%] h-[30%] blur-[150px] rounded-full transition-opacity duration-1000",
+          theme === 'dark' ? "bg-indigo-500/5 opacity-100" : "bg-indigo-500/5 opacity-30"
         )} />
         <div className={cn(
-          "absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] blur-[120px] rounded-full transition-opacity duration-1000",
-          theme === 'dark' ? "bg-violet-500/10 opacity-100" : "bg-violet-500/10 opacity-50"
+          "absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] blur-[150px] rounded-full transition-opacity duration-1000",
+          theme === 'dark' ? "bg-violet-500/5 opacity-100" : "bg-violet-500/5 opacity-30"
         )} />
       </div>
 
       {/* Public Header */}
       <header className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
-        theme === 'dark' ? "bg-[#050505]/80 backdrop-blur-xl border-b border-white/5" : "bg-[#f5f5f5]/80 backdrop-blur-xl border-b border-black/5"
+        theme === 'dark' ? "bg-[#050505]/60 backdrop-blur-md border-b border-white/5" : "bg-[#f5f5f5]/60 backdrop-blur-md border-b border-black/5"
       )}>
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-indigo-600/20">
+            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
               <Link2 size={18} />
             </div>
-            <span className="font-display font-bold text-lg tracking-tight">{settings.site_name || "Cutly"}</span>
+            <span className="font-bold text-lg tracking-tight">{settings.site_name || "Cutly"}</span>
           </div>
           <div className="flex items-center gap-4">
             <nav className="hidden md:flex items-center gap-6 mr-4">
-              <a href="#features" className="text-sm font-medium text-gray-400 hover:text-indigo-400 transition-colors">Features</a>
-              <a href="#pricing" className="text-sm font-medium text-gray-400 hover:text-indigo-400 transition-colors">Pricing</a>
+              <a href="#features" className="text-sm font-medium text-gray-500 hover:text-indigo-600 transition-colors">Features</a>
+              <a href="#pricing" className="text-sm font-medium text-gray-500 hover:text-indigo-600 transition-colors">Pricing</a>
             </nav>
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -295,13 +295,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
             </button>
             <button 
               onClick={() => { setIsSignup(false); setShowLoginForm(true); }}
-              className="text-sm font-medium hover:text-indigo-400 transition-colors hidden sm:block"
+              className="text-sm font-medium hover:text-indigo-600 transition-colors hidden sm:block"
             >
               Log in
             </button>
             <button 
               onClick={() => { setIsSignup(true); setShowLoginForm(true); }}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all shadow-md shadow-indigo-600/20"
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all"
             >
               Sign up free
             </button>
@@ -310,39 +310,31 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
       </header>
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 px-6 overflow-hidden min-h-[90vh] flex flex-col justify-center">
-        <div className="max-w-5xl mx-auto text-center relative z-10">
+      <section className="relative pt-40 pb-32 px-6 overflow-hidden flex flex-col justify-center">
+        <div className="max-w-4xl mx-auto text-center relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
           >
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-semibold tracking-wide mb-8 border border-indigo-500/20">
-              <Sparkles size={14} />
-              <span>The new standard for link management</span>
-            </div>
-            <h1 className="text-6xl sm:text-7xl md:text-8xl font-display font-bold tracking-tighter leading-[1.05] mb-6">
+            <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tighter leading-[1.1] mb-8">
               {settings.hero_title || "Shorten links,"} <br className="hidden md:block" />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">
                 {settings.hero_subtitle || "amplify results."}
               </span>
             </h1>
-            <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto mb-12 leading-relaxed">
-              {settings.hero_description || "The enterprise-grade link management platform for modern teams. Build trust, track performance, and scale your reach with lightning-fast URL shortening."}
+            <p className="text-gray-500 text-lg md:text-xl max-w-xl mx-auto mb-16 leading-relaxed">
+              {settings.hero_description || "The enterprise-grade link management platform for modern teams. Build trust, track performance, and scale your reach."}
             </p>
 
             {/* Interactive URL Input */}
-            <form onSubmit={handleMockShorten} className="max-w-2xl mx-auto relative group">
+            <form onSubmit={handleMockShorten} className="max-w-xl mx-auto relative group">
               <div className={cn(
-                "absolute -inset-1 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200",
-                theme === 'dark' ? "bg-gradient-to-r from-indigo-500 to-violet-500" : "bg-gradient-to-r from-indigo-400 to-violet-400"
-              )}></div>
-              <div className={cn(
-                "relative flex items-center p-2 rounded-2xl border shadow-xl transition-all",
+                "relative flex items-center p-2 rounded-2xl border shadow-sm transition-all",
                 theme === 'dark' ? "bg-[#111111] border-white/10" : "bg-white border-gray-200"
               )}>
-                <div className="pl-4 text-gray-500">
-                  <Link2 size={24} />
+                <div className="pl-4 text-gray-400">
+                  <Link2 size={20} />
                 </div>
                 <input
                   type="url"
@@ -350,17 +342,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                   value={mockUrl}
                   onChange={(e) => setMockUrl(e.target.value)}
                   placeholder="Paste your long link here..."
-                  className="w-full bg-transparent border-none outline-none px-4 py-4 text-lg placeholder-gray-600"
+                  className="w-full bg-transparent border-none outline-none px-4 py-3 text-base placeholder-gray-400"
                 />
                 <button
                   type="submit"
-                  className="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all shadow-md flex items-center gap-2 whitespace-nowrap"
+                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-all flex items-center gap-2 whitespace-nowrap"
                 >
-                  Shorten <ArrowRight size={18} />
+                  Shorten <ArrowRight size={16} />
                 </button>
               </div>
             </form>
-            <p className="mt-4 text-sm text-gray-500">No credit card required. Free plan available.</p>
           </motion.div>
         </div>
       </section>
@@ -368,11 +359,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
       {/* Bento Grid Features */}
       <section id="features" className="py-32 px-6 relative z-10">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-5xl font-display font-bold mb-6 tracking-tight">Everything you need. <br/> Nothing you don't.</h2>
+          <div className="text-center mb-24">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 tracking-tight">Everything you need. <br className="hidden md:block"/> Nothing you don't.</h2>
+            <p className="text-gray-500 text-lg max-w-2xl mx-auto">Powerful features designed to help you manage, track, and optimize your links effortlessly.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[320px]">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 auto-rows-[320px]">
             {features.length > 0 ? (
               features.map((feature, index) => (
                 <motion.div 
@@ -382,26 +374,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
                   className={cn(
-                    "rounded-[32px] p-10 flex flex-col justify-between border relative overflow-hidden group",
+                    "rounded-[32px] p-10 flex flex-col justify-between border relative overflow-hidden group transition-all hover:shadow-lg",
                     index % 3 === 0 ? "md:col-span-2" : "",
-                    theme === 'dark' ? "bg-[#111111] border-white/10" : "bg-white border-gray-200 shadow-sm"
+                    theme === 'dark' ? "bg-[#111111] border-white/5 hover:border-white/10" : "bg-white border-gray-200 hover:border-gray-300"
                   )}
                 >
                   <div className="relative z-10">
                     <div className={cn(
                       "w-12 h-12 rounded-2xl flex items-center justify-center mb-6",
-                      index % 3 === 0 ? "bg-indigo-500/10 text-indigo-400" : 
-                      index % 3 === 1 ? "bg-violet-500/10 text-violet-400" :
-                      "bg-emerald-500/10 text-emerald-400"
+                      index % 3 === 0 ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400" : 
+                      index % 3 === 1 ? "bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400" :
+                      "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400"
                     )}>
                       <IconRenderer icon={feature.icon} />
                     </div>
                     <h3 className="text-2xl font-bold mb-3">{feature.title}</h3>
-                    <p className="text-gray-400 max-w-md">{feature.description}</p>
+                    <p className="text-gray-500 dark:text-gray-400 max-w-md leading-relaxed">{feature.description}</p>
                   </div>
                   
                   {index % 3 === 0 && (
-                    <div className="absolute right-0 bottom-0 w-2/3 h-2/3 opacity-50 group-hover:opacity-100 transition-opacity duration-500">
+                    <div className="absolute right-0 bottom-0 w-2/3 h-2/3 opacity-30 group-hover:opacity-60 transition-opacity duration-500">
                       <div className="absolute bottom-0 right-10 flex items-end gap-3 h-full pb-10">
                         {[40, 70, 45, 90, 65, 80].map((h, i) => (
                           <motion.div 
@@ -409,7 +401,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                             initial={{ height: 0 }}
                             whileInView={{ height: `${h}%` }}
                             transition={{ duration: 1, delay: i * 0.1 }}
-                            className="w-12 bg-gradient-to-t from-indigo-600/20 to-indigo-500/80 rounded-t-xl"
+                            className="w-12 bg-gradient-to-t from-indigo-500/20 to-indigo-500/60 rounded-t-xl"
                           />
                         ))}
                       </div>
@@ -425,19 +417,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   className={cn(
-                    "md:col-span-2 rounded-[32px] p-10 flex flex-col justify-between border relative overflow-hidden group",
-                    theme === 'dark' ? "bg-[#111111] border-white/10" : "bg-white border-gray-200 shadow-sm"
+                    "md:col-span-2 rounded-[32px] p-10 flex flex-col justify-between border relative overflow-hidden group transition-all hover:shadow-lg",
+                    theme === 'dark' ? "bg-[#111111] border-white/5 hover:border-white/10" : "bg-white border-gray-200 hover:border-gray-300"
                   )}
                 >
                   <div className="relative z-10">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-6">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 flex items-center justify-center mb-6">
                       <BarChart2 size={24} />
                     </div>
                     <h3 className="text-2xl font-bold mb-3">Real-time Analytics</h3>
-                    <p className="text-gray-400 max-w-md">Track every click, geographic location, device type, and referring source instantly. Make data-driven decisions.</p>
+                    <p className="text-gray-500 dark:text-gray-400 max-w-md leading-relaxed">Track every click, geographic location, device type, and referring source instantly. Make data-driven decisions.</p>
                   </div>
                   
-                  <div className="absolute right-0 bottom-0 w-2/3 h-2/3 opacity-50 group-hover:opacity-100 transition-opacity duration-500">
+                  <div className="absolute right-0 bottom-0 w-2/3 h-2/3 opacity-30 group-hover:opacity-60 transition-opacity duration-500">
                     <div className="absolute bottom-0 right-10 flex items-end gap-3 h-full pb-10">
                       {[40, 70, 45, 90, 65, 80].map((h, i) => (
                         <motion.div 
@@ -445,7 +437,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                           initial={{ height: 0 }}
                           whileInView={{ height: `${h}%` }}
                           transition={{ duration: 1, delay: i * 0.1 }}
-                          className="w-12 bg-gradient-to-t from-indigo-600/20 to-indigo-500/80 rounded-t-xl"
+                          className="w-12 bg-gradient-to-t from-indigo-500/20 to-indigo-500/60 rounded-t-xl"
                         />
                       ))}
                     </div>
@@ -458,16 +450,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                   viewport={{ once: true }}
                   transition={{ delay: 0.1 }}
                   className={cn(
-                    "rounded-[32px] p-10 flex flex-col justify-between border relative overflow-hidden",
-                    theme === 'dark' ? "bg-[#111111] border-white/10" : "bg-white border-gray-200 shadow-sm"
+                    "rounded-[32px] p-10 flex flex-col justify-between border relative overflow-hidden transition-all hover:shadow-lg",
+                    theme === 'dark' ? "bg-[#111111] border-white/5 hover:border-white/10" : "bg-white border-gray-200 hover:border-gray-300"
                   )}
                 >
                   <div>
-                    <div className="w-12 h-12 rounded-2xl bg-violet-500/10 flex items-center justify-center text-violet-400 mb-6">
+                    <div className="w-12 h-12 rounded-2xl bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400 flex items-center justify-center mb-6">
                       <Globe size={24} />
                     </div>
                     <h3 className="text-2xl font-bold mb-3">Custom Domains</h3>
-                    <p className="text-gray-400">Use your own brand's domain for a professional look and higher click-through rates.</p>
+                    <p className="text-gray-500 dark:text-gray-400 leading-relaxed">Use your own brand's domain for a professional look and higher click-through rates.</p>
                   </div>
                 </motion.div>
 
@@ -477,16 +469,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                   viewport={{ once: true }}
                   transition={{ delay: 0.2 }}
                   className={cn(
-                    "rounded-[32px] p-10 flex flex-col justify-between border relative overflow-hidden",
-                    theme === 'dark' ? "bg-[#111111] border-white/10" : "bg-white border-gray-200 shadow-sm"
+                    "rounded-[32px] p-10 flex flex-col justify-between border relative overflow-hidden transition-all hover:shadow-lg",
+                    theme === 'dark' ? "bg-[#111111] border-white/5 hover:border-white/10" : "bg-white border-gray-200 hover:border-gray-300"
                   )}
                 >
                   <div>
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 mb-6">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 flex items-center justify-center mb-6">
                       <QrCode size={24} />
                     </div>
                     <h3 className="text-2xl font-bold mb-3">QR Codes</h3>
-                    <p className="text-gray-400">Generate customizable QR codes for your links instantly. Perfect for print media.</p>
+                    <p className="text-gray-500 dark:text-gray-400 leading-relaxed">Generate customizable QR codes for your links instantly. Perfect for print media.</p>
                   </div>
                 </motion.div>
               </>
@@ -498,7 +490,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
       {/* Pricing Section */}
       <section id="pricing" className="py-32 px-6 relative z-10 overflow-hidden">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
+          <div className="text-center mb-20">
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -508,16 +500,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
               <Zap size={14} />
               <span>Flexible Plans</span>
             </motion.div>
-            <h2 className="text-4xl md:text-6xl font-display font-bold mb-6 tracking-tight">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 tracking-tight">
               Scale your links, <br className="hidden md:block" />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-violet-500">not your costs.</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">not your costs.</span>
             </h2>
-            <p className="text-xl text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
+            <p className="text-xl text-gray-500 max-w-2xl mx-auto">
               Choose the perfect plan for your needs. From personal projects to global enterprises.
             </p>
 
             {/* Billing Toggle */}
-            <div className="mt-10 flex items-center justify-center gap-4">
+            <div className="mt-12 flex items-center justify-center gap-4">
               <button 
                 onClick={() => setBillingCycle('monthly')}
                 className={cn(
@@ -552,7 +544,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
               >
                 Yearly
               </button>
-              <span className="ml-2 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-bold uppercase tracking-wider border border-emerald-500/20">
+              <span className="ml-2 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 text-[10px] font-bold uppercase tracking-wider border border-emerald-500/20">
                 Save 20%
               </span>
             </div>
@@ -564,11 +556,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              whileHover={{ scale: 1.02 }}
+              whileHover={{ y: -5 }}
               transition={{ duration: 0.2 }}
               className={cn(
-                "p-10 rounded-[40px] border transition-all flex flex-col h-full",
-                theme === 'dark' ? "bg-[#0a0a0a] border-white/5 hover:border-white/10" : "bg-white border-gray-100 shadow-sm hover:shadow-md"
+                "p-8 rounded-[32px] border transition-all flex flex-col h-full",
+                theme === 'dark' ? "bg-[#111111] border-white/5 hover:border-white/10" : "bg-white border-gray-200 shadow-sm hover:shadow-md"
               )}
             >
               <div className="mb-8">
@@ -577,7 +569,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
               </div>
               <div className="mb-8">
                 <div className="flex items-baseline gap-1">
-                  <span className="text-5xl font-display font-bold">$0</span>
+                  <span className="text-4xl font-bold">$0</span>
                   <span className="text-gray-500 text-sm">/{billingCycle === 'monthly' ? 'month' : 'year'}</span>
                 </div>
               </div>
@@ -593,7 +585,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                   <div key={`hobby-${feature.text}`} className="flex items-center gap-3">
                     {feature.active ? (
                       <div className="w-5 h-5 rounded-full bg-indigo-500/10 flex items-center justify-center shrink-0">
-                        <Check size={12} className="text-indigo-500" />
+                        <Check size={12} className="text-indigo-600" />
                       </div>
                     ) : (
                       <div className="w-5 h-5 rounded-full bg-gray-500/10 flex items-center justify-center shrink-0">
@@ -602,7 +594,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                     )}
                     <span className={cn(
                       "text-sm",
-                      feature.active ? (theme === 'dark' ? "text-gray-300" : "text-gray-700") : "text-gray-400 line-through"
+                      feature.active ? (theme === 'dark' ? "text-gray-300" : "text-gray-600") : "text-gray-400 line-through"
                     )}>
                       {feature.text}
                     </span>
@@ -612,8 +604,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
               <button 
                 onClick={() => handlePlanClick('hobby')}
                 className={cn(
-                  "w-full py-4 rounded-2xl font-bold transition-all mt-auto",
-                  theme === 'dark' ? "bg-white/5 hover:bg-white/10 text-white" : "bg-gray-100 hover:bg-gray-200 text-gray-900"
+                  "w-full py-3 rounded-xl font-semibold transition-all mt-auto border",
+                  theme === 'dark' 
+                    ? "bg-white/5 border-white/10 hover:bg-white/10 text-white" 
+                    : "bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-900"
                 )}
               >
                 Get Started
@@ -625,17 +619,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              whileHover={{ scale: 1.02 }}
+              whileHover={{ y: -5 }}
               transition={{ duration: 0.2 }}
               className={cn(
-                "p-10 rounded-[40px] border-2 relative transition-all flex flex-col h-full transform md:-translate-y-4",
+                "p-8 rounded-[32px] border-2 relative transition-all flex flex-col h-full transform md:-translate-y-4",
                 theme === 'dark' 
-                  ? "bg-[#111] border-indigo-500 shadow-[0_0_60px_rgba(99,102,241,0.3)]" 
-                  : "bg-white border-indigo-500 shadow-2xl shadow-indigo-500/20"
+                  ? "bg-[#111] border-indigo-500 shadow-[0_0_60px_rgba(99,102,241,0.15)]" 
+                  : "bg-white border-indigo-600 shadow-xl shadow-indigo-600/10"
               )}
             >
               <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                <span className="bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-[10px] font-bold uppercase tracking-widest py-1.5 px-4 rounded-full shadow-lg shadow-indigo-500/40 ring-2 ring-white/20">
+                <span className="bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-widest py-1.5 px-4 rounded-full shadow-lg shadow-indigo-600/20 ring-4 ring-white dark:ring-[#050505]">
                   Most Popular
                 </span>
               </div>
@@ -645,13 +639,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
               </div>
               <div className="mb-8">
                 <div className="flex items-baseline gap-1">
-                  <span className="text-5xl font-display font-bold">
+                  <span className="text-4xl font-bold">
                     ${billingCycle === 'monthly' ? '12' : '10'}
                   </span>
                   <span className="text-gray-500 text-sm">/month</span>
                 </div>
                 {billingCycle === 'yearly' && (
-                  <p className="text-[10px] text-emerald-500 font-bold mt-1 uppercase tracking-wider">Billed $120/year</p>
+                  <p className="text-[10px] text-emerald-600 font-bold mt-1 uppercase tracking-wider">Billed $120/year</p>
                 )}
               </div>
               <div className="space-y-4 mb-10 flex-1">
@@ -664,12 +658,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                   { text: 'Priority Support', active: true },
                 ].map((feature) => (
                   <div key={`pro-${feature.text}`} className="flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center shrink-0">
+                    <div className="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center shrink-0">
                       <Check size={12} className="text-white" />
                     </div>
                     <span className={cn(
                       "text-sm font-medium",
-                      theme === 'dark' ? "text-gray-200" : "text-gray-800"
+                      theme === 'dark' ? "text-gray-200" : "text-gray-900"
                     )}>
                       {feature.text}
                     </span>
@@ -678,7 +672,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
               </div>
               <button 
                 onClick={() => handlePlanClick('pro')}
-                className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl transition-all shadow-xl shadow-indigo-600/30 mt-auto"
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all shadow-lg shadow-indigo-600/20 mt-auto"
               >
                 Upgrade to Pro
               </button>
@@ -689,11 +683,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              whileHover={{ scale: 1.02 }}
+              whileHover={{ y: -5 }}
               transition={{ duration: 0.2 }}
               className={cn(
-                "p-10 rounded-[40px] border transition-all flex flex-col h-full",
-                theme === 'dark' ? "bg-[#0a0a0a] border-white/5 hover:border-white/10" : "bg-white border-gray-100 shadow-sm hover:shadow-md"
+                "p-8 rounded-[32px] border transition-all flex flex-col h-full",
+                theme === 'dark' ? "bg-[#111111] border-white/5 hover:border-white/10" : "bg-white border-gray-200 shadow-sm hover:shadow-md"
               )}
             >
               <div className="mb-8">
@@ -702,13 +696,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
               </div>
               <div className="mb-8">
                 <div className="flex items-baseline gap-1">
-                  <span className="text-5xl font-display font-bold">
+                  <span className="text-4xl font-bold">
                     ${billingCycle === 'monthly' ? '49' : '39'}
                   </span>
                   <span className="text-gray-500 text-sm">/month</span>
                 </div>
                 {billingCycle === 'yearly' && (
-                  <p className="text-[10px] text-emerald-500 font-bold mt-1 uppercase tracking-wider">Billed $468/year</p>
+                  <p className="text-[10px] text-emerald-600 font-bold mt-1 uppercase tracking-wider">Billed $468/year</p>
                 )}
               </div>
               <div className="space-y-4 mb-10 flex-1">
@@ -722,11 +716,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                 ].map((feature) => (
                   <div key={`enterprise-${feature.text}`} className="flex items-center gap-3">
                     <div className="w-5 h-5 rounded-full bg-violet-500/10 flex items-center justify-center shrink-0">
-                      <Check size={12} className="text-violet-500" />
+                      <Check size={12} className="text-violet-600" />
                     </div>
                     <span className={cn(
                       "text-sm",
-                      theme === 'dark' ? "text-gray-300" : "text-gray-700"
+                      theme === 'dark' ? "text-gray-300" : "text-gray-600"
                     )}>
                       {feature.text}
                     </span>
@@ -736,8 +730,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
               <button 
                 onClick={() => handlePlanClick('enterprise')}
                 className={cn(
-                  "w-full py-4 rounded-2xl font-bold transition-all mt-auto",
-                  theme === 'dark' ? "bg-white/5 hover:bg-white/10 text-white" : "bg-gray-100 hover:bg-gray-200 text-gray-900"
+                  "w-full py-3 rounded-xl font-semibold transition-all mt-auto border",
+                  theme === 'dark' 
+                    ? "bg-white/5 border-white/10 hover:bg-white/10 text-white" 
+                    : "bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-900"
                 )}
               >
                 Contact Sales
@@ -746,20 +742,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
           </div>
 
           {/* Trust Badge / Marquee */}
-          <div className="mt-20 text-center overflow-hidden">
-            <p className="text-sm text-gray-500 mb-8 uppercase tracking-widest font-bold">Trusted by innovative teams at</p>
+          <div className="mt-24 text-center overflow-hidden">
+            <p className="text-sm text-gray-400 mb-10 uppercase tracking-widest font-semibold">Trusted by innovative teams at</p>
             
             <div className="relative flex overflow-x-hidden group">
               <div className={cn(
-                "absolute left-0 top-0 bottom-0 w-20 z-10 bg-gradient-to-r",
-                theme === 'dark' ? "from-[#0a0a0a] to-transparent" : "from-[#f5f5f5] to-transparent"
+                "absolute left-0 top-0 bottom-0 w-32 z-10 bg-gradient-to-r",
+                theme === 'dark' ? "from-[#050505] to-transparent" : "from-[#f5f5f5] to-transparent"
               )} />
               <div className={cn(
-                "absolute right-0 top-0 bottom-0 w-20 z-10 bg-gradient-to-l",
-                theme === 'dark' ? "from-[#0a0a0a] to-transparent" : "from-[#f5f5f5] to-transparent"
+                "absolute right-0 top-0 bottom-0 w-32 z-10 bg-gradient-to-l",
+                theme === 'dark' ? "from-[#050505] to-transparent" : "from-[#f5f5f5] to-transparent"
               )} />
               
-              <div className="flex animate-marquee whitespace-nowrap gap-16 items-center pr-16 opacity-50 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500">
+              <div className="flex animate-marquee whitespace-nowrap gap-16 items-center pr-16 opacity-40 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500">
                 {[...Array(2)].map((_, i) => (
                   <React.Fragment key={`marquee1-${i}`}>
                     <GoogleLogo />
@@ -774,7 +770,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                   </React.Fragment>
                 ))}
               </div>
-              <div className="flex absolute top-0 left-0 animate-marquee2 whitespace-nowrap gap-16 items-center pr-16 opacity-50 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500">
+              <div className="flex absolute top-0 left-0 animate-marquee2 whitespace-nowrap gap-16 items-center pr-16 opacity-40 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500">
                 {[...Array(2)].map((_, i) => (
                   <React.Fragment key={`marquee2-${i}`}>
                     <GoogleLogo />
@@ -798,8 +794,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
       <section className="py-32 px-6 relative z-10">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-display font-bold mb-4 tracking-tight">Frequently Asked Questions</h2>
-            <p className="text-gray-500">Everything you need to know about Cutly.</p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight">Frequently Asked Questions</h2>
+            <p className="text-gray-500 text-lg">Everything you need to know about Cutly.</p>
           </div>
 
           <div className="space-y-4">
