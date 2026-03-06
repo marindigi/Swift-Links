@@ -17,8 +17,8 @@ import { rateLimit as expressRateLimit } from "express-rate-limit";
 
 const resolveTxt = promisify(dns.resolveTxt);
 
-const SUPABASE_URL = process.env.SUPABASE_URL || "https://agqxtvotqgndohhtdvov.supabase.co";
-const SUPABASE_PUBLIC_KEY = process.env.SUPABASE_PUBLIC_KEY || "sb_publishable_kUE5pMvbhzYTS5HgTUDauQ_i9iKzn-I";
+const SUPABASE_URL = "https://lqrcrqcgzticbzazxorc.supabase.co";
+const SUPABASE_PUBLIC_KEY = "sb_publishable_lhizgd0mwyTZ8XYUpJO6sg_YkRomYze";
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLIC_KEY);
 
 // Initialize Stripe lazily
@@ -143,6 +143,12 @@ try {
 } catch (e) {}
 try {
   db.exec("ALTER TABLE users ADD COLUMN notify_plan_expiry BOOLEAN DEFAULT 1");
+} catch (e) {}
+try {
+  db.exec("ALTER TABLE users ADD COLUMN resetToken TEXT");
+} catch (e) {}
+try {
+  db.exec("ALTER TABLE users ADD COLUMN resetTokenExpiresAt DATETIME");
 } catch (e) {}
 
 // Promote specific user to admin
@@ -312,6 +318,14 @@ db.exec(`
     name TEXT,
     userId TEXT,
     userEmail TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(userId) REFERENCES users(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS feedback (
+    id TEXT PRIMARY KEY,
+    userId TEXT,
+    message TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(userId) REFERENCES users(id)
   );
@@ -695,6 +709,55 @@ async function startServer() {
     }
   });
 
+  app.post("/api/admin/users/bulk-delete", authenticate, requireAdmin, (req: any, res) => {
+    const { ids } = req.body;
+    
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: "No user IDs provided" });
+    }
+
+    if (ids.includes(req.user.uid)) {
+      return res.status(400).json({ error: "Cannot delete yourself in a bulk operation" });
+    }
+
+    try {
+      db.transaction(() => {
+        for (const id of ids) {
+          // 1. Delete clicks for user's URLs
+          const userUrls = db.prepare("SELECT id FROM urls WHERE userId = ?").all(id);
+          const urlIds = userUrls.map((u: any) => u.id);
+          
+          if (urlIds.length > 0) {
+            const placeholders = urlIds.map(() => '?').join(',');
+            db.prepare(`DELETE FROM clicks WHERE urlId IN (${placeholders})`).run(...urlIds);
+          }
+
+          // 2. Delete URLs, Domains, API Keys, Tasks
+          db.prepare("DELETE FROM urls WHERE userId = ?").run(id);
+          db.prepare("DELETE FROM domains WHERE userId = ?").run(id);
+          db.prepare("DELETE FROM apiKeys WHERE userId = ?").run(id);
+          db.prepare("DELETE FROM tasks WHERE userId = ?").run(id);
+          
+          // 3. Finally delete the user
+          db.prepare("DELETE FROM users WHERE id = ?").run(id);
+        }
+      })();
+      
+      res.json({ success: true, deletedCount: ids.length });
+    } catch (error) {
+      console.error("Bulk delete users error:", error);
+      res.status(500).json({ error: "Failed to bulk delete users" });
+    }
+  });
+
+  app.post("/api/feedback", authenticate, (req: any, res) => {
+    const { message } = req.body;
+    if (!message) return res.status(400).json({ error: "Message is required" });
+    const id = nanoid();
+    db.prepare("INSERT INTO feedback (id, userId, message) VALUES (?, ?, ?)").run(id, req.user.uid, message);
+    res.json({ success: true });
+  });
+
   app.post("/api/auth/login", (req, res) => {
     const { email, password } = req.body;
     console.log(`[Login Attempt] Email: ${email}`);
@@ -748,6 +811,17 @@ async function startServer() {
         name || null
       );
 
+      const html = `
+        <h2>Welcome to Cutly!</h2>
+        <p>Hi ${name || 'there'},</p>
+        <p>Thank you for registering. We're excited to have you on board.</p>
+        <p>Start shortening and tracking your links today!</p>
+        <br/>
+        <p>Best regards,</p>
+        <p>The Cutly Team</p>
+      `;
+      sendEmail(email, 'Welcome to Cutly!', html);
+
       (req.session as any).userId = id;
       res.json({ id, email, name });
     } catch (error) {
@@ -761,6 +835,54 @@ async function startServer() {
       if (err) return res.status(500).json({ error: "Failed to logout" });
       res.json({ success: true });
     });
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email is required" });
+
+    const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email) as any;
+    if (user && user.password) {
+      const token = nanoid(32);
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
+      
+      db.prepare("UPDATE users SET resetToken = ?, resetTokenExpiresAt = ? WHERE id = ?").run(token, expiresAt, user.id);
+      
+      const resetUrl = `${req.protocol}://${req.get('host')}/update-password?token=${token}`;
+      const html = `
+        <h2>Password Reset</h2>
+        <p>You requested a password reset for your Cutly account.</p>
+        <p>Click the link below to reset your password:</p>
+        <p><a href="${resetUrl}">${resetUrl}</a></p>
+        <p>If you didn't request this, you can safely ignore this email.</p>
+        <br/>
+        <p>Best regards,</p>
+        <p>The Cutly Team</p>
+      `;
+      await sendEmail(email, 'Cutly Password Reset', html);
+    }
+    
+    res.json({ success: true, message: "If an account exists, a reset link has been sent." });
+  });
+
+  app.post("/api/auth/update-password", async (req, res) => {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ error: "Token and password are required" });
+    
+    if (password.length < 4) {
+      return res.status(400).json({ error: "Password must be at least 4 characters long" });
+    }
+
+    const user = db.prepare("SELECT * FROM users WHERE resetToken = ? AND resetTokenExpiresAt > ?").get(token, new Date().toISOString()) as any;
+    
+    if (!user) {
+      return res.status(400).json({ error: "Invalid or expired reset token" });
+    }
+
+    const hashedPassword = bcrypt.hashSync(password, 10);
+    db.prepare("UPDATE users SET password = ?, resetToken = NULL, resetTokenExpiresAt = NULL WHERE id = ?").run(hashedPassword, user.id);
+    
+    res.json({ success: true });
   });
 
   // Stripe Payment Routes
@@ -1108,8 +1230,8 @@ async function startServer() {
   });
 
   // Domain Management APIs
-  app.get("/api/domains", (_req, res) => {
-    const domains = db.prepare("SELECT * FROM domains ORDER BY createdAt DESC").all();
+  app.get("/api/domains", authenticate, (req: any, res) => {
+    const domains = db.prepare("SELECT * FROM domains WHERE userId = ? ORDER BY createdAt DESC").all(req.user.uid);
     res.json(domains);
   });
 
@@ -1411,20 +1533,6 @@ const checkDomainLimit = (userId: string) => {
   app.delete("/api/keys/:id", authenticate, (req: any, res) => {
     const result = db.prepare("DELETE FROM apiKeys WHERE id = ? AND userId = ?").run(req.params.id, req.user.uid);
     res.json({ success: result.changes > 0 });
-  });
-
-  app.post("/api/domains/:id/verify", authenticate, (req: any, res) => {
-    // In a real app, this would check DNS records (TXT or CNAME)
-    // For this demo, we'll simulate verification success
-    try {
-      const domain = db.prepare("SELECT * FROM domains WHERE id = ? AND userId = ?").get(req.params.id, req.user.uid);
-      if (!domain) return res.status(404).json({ error: "Domain not found" });
-
-      db.prepare("UPDATE domains SET status = 'verified' WHERE id = ?").run(req.params.id);
-      res.json({ success: true, status: 'verified' });
-    } catch (error) {
-      res.status(500).json({ error: "Verification failed" });
-    }
   });
 
   // Tasks API

@@ -48,7 +48,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
       } catch (error) {
         console.error('Error during auto-refresh:', error);
       }
-    }, 10000); // Refresh every 10 seconds for real-time feel
+    }, 15000); // Refresh every 15 seconds
     
     return () => clearInterval(interval);
   }, [isAutoRefreshEnabled, selectedPreset, startDate, endDate, onRefresh]);
@@ -140,9 +140,14 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
 
   const topUrls = [...uniqueUrls].sort((a, b) => (b.clicks || 0) - (a.clicks || 0)).slice(0, 5);
   
-  const recentClicks = [...analyticsData.clicks]
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    .slice(0, 10);
+  const recentClicks = React.useMemo(() => {
+    if (!analyticsData?.clicks) return [];
+    const clicks = [...analyticsData.clicks];
+    const unique = Array.from(new Map(clicks.map(c => [c.id || Math.random(), c])).values());
+    return unique
+      .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 10);
+  }, [analyticsData?.clicks]);
 
   const clicksByDate = analyticsData.clicks.reduce((acc: any, click: any) => {
     const date = new Date(click.timestamp).toLocaleDateString();
@@ -255,18 +260,31 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
               ))}
             </div>
             
-            <button
-              onClick={() => setIsAutoRefreshEnabled(!isAutoRefreshEnabled)}
-              className={cn(
-                "hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black tracking-widest transition-all border",
-                isAutoRefreshEnabled
-                  ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-                  : theme === 'dark' ? "bg-white/5 border-white/5 text-gray-500" : "bg-gray-50 border-gray-200 text-gray-500"
-              )}
-            >
-              <div className={cn("w-2 h-2 rounded-full", isAutoRefreshEnabled ? "bg-emerald-500 animate-pulse" : "bg-gray-400")} />
-              LIVE
-            </button>
+            <div className={cn(
+              "hidden md:flex items-center gap-3 px-3 py-1.5 rounded-lg border",
+              theme === 'dark' ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-200"
+            )}>
+              <div className="flex items-center gap-2">
+                <div className={cn("w-2 h-2 rounded-full", isAutoRefreshEnabled ? "bg-emerald-500 animate-pulse" : "bg-gray-400")} />
+                <span className={cn("text-[10px] font-black tracking-widest uppercase", isAutoRefreshEnabled ? "text-emerald-500" : "text-gray-500")}>
+                  Auto-Refresh
+                </span>
+              </div>
+              <button
+                onClick={() => setIsAutoRefreshEnabled(!isAutoRefreshEnabled)}
+                className={cn(
+                  "relative inline-flex h-4 w-8 items-center rounded-full transition-colors focus:outline-none",
+                  isAutoRefreshEnabled ? "bg-emerald-500" : "bg-gray-300"
+                )}
+              >
+                <span
+                  className={cn(
+                    "inline-block h-3 w-3 transform rounded-full bg-white transition-transform",
+                    isAutoRefreshEnabled ? "translate-x-4" : "translate-x-1"
+                  )}
+                />
+              </button>
+            </div>
           </div>
           
           <div className="flex items-center gap-3 w-full">

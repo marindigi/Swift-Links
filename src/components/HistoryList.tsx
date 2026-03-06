@@ -14,6 +14,7 @@ interface HistoryListProps {
   history: HistoryItem[];
   theme: 'light' | 'dark';
   onDelete: (id: string) => Promise<void>;
+  onBulkDelete: (ids: string[]) => Promise<void>;
   onClear: () => void;
   openShareModal: (url: string) => void;
   openQrModal: (url: string) => void;
@@ -23,6 +24,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
   history, 
   theme, 
   onDelete, 
+  onBulkDelete,
   onClear,
   openShareModal,
   openQrModal
@@ -35,6 +37,8 @@ export const HistoryList: React.FC<HistoryListProps> = ({
   const [expandedBulkId, setExpandedBulkId] = useState<string | null>(null);
   const [bulkViewMode, setBulkViewMode] = useState<'url' | 'id'>('url');
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   const filteredHistory = history
     .filter(item => 
@@ -55,6 +59,9 @@ export const HistoryList: React.FC<HistoryListProps> = ({
       }
       return historySortOrder === 'desc' ? -comparison : comparison;
     });
+
+  // Deduplicate filtered history to prevent key collisions
+  const uniqueFilteredHistory = Array.from(new Map(filteredHistory.map(item => [item.id, item])).values()) as HistoryItem[];
 
   if (history.length === 0) return null;
 
@@ -82,6 +89,27 @@ export const HistoryList: React.FC<HistoryListProps> = ({
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
+          {selectedItems.length > 0 && (
+            <button
+              onClick={async () => {
+                if (!window.confirm(`Are you sure you want to delete ${selectedItems.length} links?`)) return;
+                setIsBulkDeleting(true);
+                try {
+                  await onBulkDelete(selectedItems);
+                  setSelectedItems([]);
+                } catch (error) {
+                  toast.error('Failed to delete links');
+                } finally {
+                  setIsBulkDeleting(false);
+                }
+              }}
+              disabled={isBulkDeleting}
+              className="flex items-center gap-2 px-3 py-2 bg-red-500 text-white rounded-xl text-xs font-bold hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              {isBulkDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+              Delete Selected ({selectedItems.length})
+            </button>
+          )}
           <div className="relative flex-1 min-w-[200px] md:flex-none">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
             <input 
@@ -178,7 +206,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
       </div>
 
       <div className="grid gap-4">
-        {filteredHistory.length === 0 && historySearch && (
+        {uniqueFilteredHistory.length === 0 && historySearch && (
           <div className="text-center py-12">
             <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-white/5 mb-4">
               <Search className="text-gray-400" size={20} />
@@ -192,7 +220,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
             </button>
           </div>
         )}
-        {filteredHistory.map((item) => (
+        {uniqueFilteredHistory.map((item) => (
           <motion.div
             layout
             key={item.id}
@@ -206,8 +234,21 @@ export const HistoryList: React.FC<HistoryListProps> = ({
             )}
           >
             <div className="flex items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-3 mb-1">
+              <div className="flex-1 min-w-0 flex items-center gap-3">
+                <input 
+                  type="checkbox" 
+                  checked={selectedItems.includes(item.id)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedItems(prev => [...prev, item.id]);
+                    } else {
+                      setSelectedItems(prev => prev.filter(id => id !== item.id));
+                    }
+                  }}
+                  className="rounded border-gray-300 text-brand focus:ring-brand cursor-pointer shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3 mb-1">
                   <a 
                     href={item.shortUrl} 
                     target="_blank" 
@@ -258,6 +299,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                     {new Date(item.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                   </span>
                 </div>
+              </div>
               </div>
 
               <div className="flex items-center gap-1.5">

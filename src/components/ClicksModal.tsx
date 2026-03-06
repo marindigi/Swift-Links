@@ -11,6 +11,11 @@ interface ClicksModalProps {
 }
 
 export const ClicksModal: React.FC<ClicksModalProps> = ({ isOpen, onClose, clicks, theme }) => {
+  const uniqueClicks = React.useMemo(() => {
+    if (!Array.isArray(clicks)) return [];
+    return Array.from(new Map(clicks.map(c => [c.id || Math.random(), c])).values());
+  }, [clicks]);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -49,7 +54,7 @@ export const ClicksModal: React.FC<ClicksModalProps> = ({ isOpen, onClose, click
                   </tr>
                 </thead>
                 <tbody className={theme === 'dark' ? "text-white" : "text-gray-900"}>
-                  {[...clicks].sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map((click: any, idx: number) => (
+                  {uniqueClicks.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map((click: any, idx: number) => (
                     <tr key={click.id || idx} className={cn("border-t", theme === 'dark' ? "border-white/5" : "border-gray-100")}>
                       <td className="py-4">{new Date(click.timestamp).toLocaleString()}</td>
                       <td className="py-4 flex items-center gap-2">

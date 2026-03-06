@@ -58,6 +58,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
   });
 
   const [userToDelete, setUserToDelete] = useState<UserData | null>(null);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'users') fetchUsers();
@@ -75,6 +77,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
       } else {
         setUsers([]);
       }
+      setSelectedUsers([]);
     } catch (error) {
       toast.error('Failed to fetch users');
       setUsers([]);
@@ -257,8 +260,33 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
       toast.success('User deleted successfully');
       setUsers(prev => Array.isArray(prev) ? prev.filter(u => u.id !== userId) : []);
       setUserToDelete(null);
+      setSelectedUsers(prev => prev.filter(id => id !== userId));
     } catch (error: any) {
       toast.error(error.message || 'Failed to delete user');
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedUsers.length === 0) return;
+    
+    if (!window.confirm(`Are you sure you want to delete ${selectedUsers.length} users? This action cannot be undone.`)) {
+      return;
+    }
+
+    setIsBulkDeleting(true);
+    try {
+      await apiClient('/api/admin/users/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedUsers }),
+      });
+      toast.success(`Successfully deleted ${selectedUsers.length} users`);
+      setUsers(prev => Array.isArray(prev) ? prev.filter(u => !selectedUsers.includes(u.id)) : []);
+      setSelectedUsers([]);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to bulk delete users');
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
 
@@ -303,20 +331,33 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
       {activeTab === 'users' ? (
         <>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
-            <div className="relative w-full sm:w-auto">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input 
-                type="text"
-                placeholder="Search users..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className={cn(
-                  "pl-10 pr-4 py-2 rounded-xl border outline-none focus:ring-2 focus:ring-brand/20 transition-all w-full sm:w-64",
-                  theme === 'dark' 
-                    ? "bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-brand/50" 
-                    : "bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-brand"
-                )}
-              />
+            <div className="flex items-center gap-4 w-full sm:w-auto">
+              <div className="relative flex-1 sm:flex-none">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input 
+                  type="text"
+                  placeholder="Search users..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className={cn(
+                    "pl-10 pr-4 py-2 rounded-xl border outline-none focus:ring-2 focus:ring-brand/20 transition-all w-full sm:w-64",
+                    theme === 'dark' 
+                      ? "bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-brand/50" 
+                      : "bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-brand"
+                  )}
+                />
+              </div>
+              
+              {selectedUsers.length > 0 && (
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={isBulkDeleting}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-xl text-sm font-bold hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                >
+                  <Trash2 size={16} />
+                  {isBulkDeleting ? 'Deleting...' : `Delete Selected (${selectedUsers.length})`}
+                </button>
+              )}
             </div>
           </div>
 
@@ -331,6 +372,20 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
               theme === 'dark' ? "bg-white/5 border-white/10 text-gray-400" : "bg-gray-50 border-gray-100 text-gray-500"
             )}>
               <tr>
+                <th className="px-6 py-4">
+                  <input 
+                    type="checkbox" 
+                    checked={filteredUsers.length > 0 && selectedUsers.length === filteredUsers.length}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedUsers(filteredUsers.map(u => u.id));
+                      } else {
+                        setSelectedUsers([]);
+                      }
+                    }}
+                    className="rounded border-gray-300 text-brand focus:ring-brand cursor-pointer"
+                  />
+                </th>
                 <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">User</th>
                 <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">Usage</th>
                 <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">Role</th>
@@ -345,13 +400,13 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
             <tbody className={cn("divide-y", theme === 'dark' ? "divide-white/5" : "divide-gray-100")}>
               {isLoading ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={10} className="px-6 py-8 text-center text-gray-500">
                     Loading users...
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={10} className="px-6 py-8 text-center text-gray-500">
                     No users found
                   </td>
                 </tr>
@@ -359,8 +414,22 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
                 filteredUsers.map((user) => (
                   <tr key={user.id} className={cn(
                     "transition-colors",
-                    theme === 'dark' ? "hover:bg-white/5" : "hover:bg-gray-50"
+                    theme === 'dark' ? "hover:bg-white/5" : "hover:bg-gray-50/50"
                   )}>
+                    <td className="px-6 py-4">
+                      <input 
+                        type="checkbox" 
+                        checked={selectedUsers.includes(user.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedUsers(prev => [...prev, user.id]);
+                          } else {
+                            setSelectedUsers(prev => prev.filter(id => id !== user.id));
+                          }
+                        }}
+                        className="rounded border-gray-300 text-brand focus:ring-brand cursor-pointer"
+                      />
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className={cn(
@@ -432,6 +501,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
                           )}
                         >
                           <option value="user">User</option>
+                          <option value="editor">Editor</option>
                           <option value="admin">Admin</option>
                         </select>
                       ) : (
@@ -439,7 +509,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
                           "px-2 py-1 rounded-lg text-xs font-bold uppercase tracking-wider",
                           user.role === 'admin' 
                             ? "bg-purple-500/10 text-purple-500" 
-                            : "bg-gray-500/10 text-gray-500"
+                            : user.role === 'editor'
+                              ? "bg-blue-500/10 text-blue-500"
+                              : "bg-gray-500/10 text-gray-500"
                         )}>
                           {user.role}
                         </span>

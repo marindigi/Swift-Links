@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Settings, Sparkles, Loader2, Trash2, Palette, Key, LogOut, Link2, Globe, CreditCard, CheckCircle, Plus, Bell } from 'lucide-react';
+import { Settings, Sparkles, Loader2, Trash2, Palette, Key, LogOut, Link2, Globe, CreditCard, CheckCircle, Plus, Bell, MessageSquare } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -28,6 +28,7 @@ interface ProfileViewProps {
   apiKeys: any[];
   onGenerateApiKey: (name: string) => Promise<any>;
   onDeleteApiKey: (id: string) => Promise<void>;
+  onOpenFeedback: () => void;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({ 
@@ -42,7 +43,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onUpdate,
   apiKeys,
   onGenerateApiKey,
-  onDeleteApiKey
+  onDeleteApiKey,
+  onOpenFeedback
 }) => {
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
@@ -243,16 +245,28 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             <p className="text-gray-500">{email}</p>
           </div>
         </div>
-        <button 
-          onClick={onLogout}
-          className={cn(
-            "px-4 py-2 rounded-xl border transition-all flex items-center gap-2 text-sm font-bold",
-            theme === 'dark' ? "bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10" : "bg-white border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-          )}
-        >
-          <LogOut size={16} />
-          Log Out
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={onOpenFeedback}
+            className={cn(
+              "px-4 py-2 rounded-xl border transition-all flex items-center gap-2 text-sm font-bold",
+              theme === 'dark' ? "bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10" : "bg-white border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+            )}
+          >
+            <MessageSquare size={16} />
+            Feedback
+          </button>
+          <button 
+            onClick={onLogout}
+            className={cn(
+              "px-4 py-2 rounded-xl border transition-all flex items-center gap-2 text-sm font-bold",
+              theme === 'dark' ? "bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10" : "bg-white border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+            )}
+          >
+            <LogOut size={16} />
+            Log Out
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

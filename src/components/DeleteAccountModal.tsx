@@ -24,6 +24,8 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({ isOpen, 
     setIsDeleting(true);
     try {
       await onConfirm();
+    } catch (error) {
+      // Error handled by parent
     } finally {
       setIsDeleting(false);
     }

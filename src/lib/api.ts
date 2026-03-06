@@ -1,5 +1,6 @@
 import { toast } from 'react-hot-toast';
 import { supabase } from '../supabaseClient';
+import { loadingManager } from './loading';
 
 interface ApiOptions {
   method?: string;
@@ -20,6 +21,7 @@ export async function apiClient<T = any>(endpoint: string, options: ApiOptions =
     showToast = true,
   } = options;
 
+  loadingManager.setLoading(true);
   try {
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
@@ -34,7 +36,9 @@ export async function apiClient<T = any>(endpoint: string, options: ApiOptions =
       body,
       credentials: 'include',
     }).catch(err => {
-      console.error(`[API Network Error] ${method} ${endpoint}:`, err);
+      if (showToast) {
+        console.error(`[API Network Error] ${method} ${endpoint}:`, err);
+      }
       throw new Error(`Network error: ${err.message || 'Failed to fetch'}`);
     });
 
@@ -43,13 +47,17 @@ export async function apiClient<T = any>(endpoint: string, options: ApiOptions =
       const text = await response.text();
       data = text ? JSON.parse(text) : {};
     } catch (e) {
-      console.error(`[API Parse Error] ${method} ${endpoint}:`, e);
+      if (showToast) {
+        console.error(`[API Parse Error] ${method} ${endpoint}:`, e);
+      }
       data = {};
     }
 
     if (!response.ok) {
       const msg = data.error || errorMessage;
-      console.error(`[API Error] ${method} ${endpoint} (${response.status}):`, msg);
+      if (showToast) {
+        console.error(`[API Error] ${method} ${endpoint} (${response.status}):`, msg);
+      }
       
       let userMsg = msg;
       if (response.status === 401) {
@@ -79,11 +87,15 @@ export async function apiClient<T = any>(endpoint: string, options: ApiOptions =
 
     return data;
   } catch (error: any) {
-    console.error(`[API Request Error] ${method} ${endpoint}:`, error);
+    if (showToast) {
+      console.error(`[API Request Error] ${method} ${endpoint}:`, error);
+    }
     const finalError = error instanceof Error ? error : new Error(String(error || errorMessage));
     if (showToast && finalError.message !== 'Unauthorized') {
       toast.error(finalError.message);
     }
     throw finalError;
+  } finally {
+    loadingManager.setLoading(false);
   }
 }

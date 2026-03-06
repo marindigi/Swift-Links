@@ -247,6 +247,8 @@ export const LinkDetailsModal: React.FC<LinkDetailsModalProps> = ({
                         try {
                           await onDelete(link.id);
                           onClose();
+                        } catch (error) {
+                          // Error handled by parent or apiClient
                         } finally {
                           setIsDeleting(false);
                         }

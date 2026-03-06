@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Globe, X, Plus, Search, Trash2, Loader2 } from 'lucide-react';
+import { Globe, X, Plus, Search, Trash2 } from 'lucide-react';
+import { Button } from './Button';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { Domain } from '../types';
@@ -124,17 +125,15 @@ export const DomainManager: React.FC<DomainManagerProps> = ({
               theme === 'dark' ? "bg-white/5 border-white/10 text-white" : "bg-gray-50 border-gray-200 text-gray-900"
             )}
           />
-          <button 
+          <Button 
             type="submit"
+            isLoading={isAdding}
             disabled={isAdding || !!deletingId || !newDomain}
-            className={cn(
-              "font-bold px-6 py-3 rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-brand/20 flex items-center justify-center gap-2 shrink-0",
-              theme === 'dark' ? "bg-brand text-white hover:bg-brand-hover" : "bg-brand text-white hover:bg-brand-hover"
-            )}
+            className="shrink-0"
           >
-            {isAdding ? <Loader2 className="animate-spin" size={18} /> : <Plus size={18} />}
+            <Plus size={18} className="mr-2" />
             <span>Add Domain</span>
-          </button>
+          </Button>
         </div>
         <p className="text-[10px] text-gray-500 mt-3 px-1 uppercase tracking-widest font-bold">Branded links build trust</p>
       </form>
@@ -191,22 +190,21 @@ export const DomainManager: React.FC<DomainManagerProps> = ({
                   <div className="flex items-center gap-2">
                     {confirmDeleteId === domain.id ? (
                       <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
-                        <button 
+                        <Button 
                           onClick={() => handleDelete(domain.id)}
-                          disabled={!!deletingId}
-                          className="text-xs font-bold text-red-400 hover:text-red-300 px-2 py-1 rounded bg-red-400/10"
+                          isLoading={deletingId === domain.id}
+                          variant="danger"
+                          size="sm"
                         >
-                          {deletingId === domain.id ? <Loader2 className="animate-spin" size={14} /> : 'Confirm'}
-                        </button>
-                        <button 
+                          Confirm
+                        </Button>
+                        <Button 
                           onClick={() => setConfirmDeleteId(null)}
-                          className={cn(
-                            "text-xs transition-colors",
-                            theme === 'dark' ? "text-gray-500 hover:text-white" : "text-gray-400 hover:text-gray-900"
-                          )}
+                          variant="ghost"
+                          size="sm"
                         >
                           Cancel
-                        </button>
+                        </Button>
                       </div>
                     ) : (
                       <button 
@@ -257,16 +255,13 @@ export const DomainManager: React.FC<DomainManagerProps> = ({
                     <p className="mt-2 text-[10px] opacity-70">
                       DNS propagation can take up to 24-48 hours, but usually happens within minutes.
                     </p>
-                    <button
+                    <Button
                       onClick={() => handleVerify(domain.id)}
-                      disabled={!!verifyingId}
-                      className={cn(
-                        "mt-3 w-full py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2",
-                        theme === 'dark' ? "bg-brand text-white hover:bg-brand-hover" : "bg-brand text-white hover:bg-brand-hover"
-                      )}
+                      isLoading={verifyingId === domain.id}
+                      className="mt-3 w-full"
                     >
-                      {verifyingId === domain.id ? <Loader2 className="animate-spin" size={14} /> : 'Verify Domain'}
-                    </button>
+                      Verify Domain
+                    </Button>
                   </div>
                 )}
               </div>

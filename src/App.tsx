@@ -21,6 +21,7 @@ import { ApiKeyManager } from './components/ApiKeyManager';
 import { ProfileView } from './components/ProfileView';
 
 import { PaymentModal } from './components/PaymentModal';
+import { FeedbackModal } from './components/FeedbackModal';
 import { AdminView } from './components/AdminView';
 import { SupportView } from './components/SupportView';
 import { TasksView } from './components/TasksView';
@@ -129,6 +130,7 @@ function AppContent() {
   
   // Payment state
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<{ id: string; name: string; price: string } | null>(null);
   
   // Analytics state
@@ -173,10 +175,15 @@ function AppContent() {
       const reason = event.reason;
       console.error('Unhandled Promise Rejection:', reason);
       
+      // Log more details if possible
+      if (reason instanceof Error) {
+        console.error('Error stack:', reason.stack);
+      }
+      
       // Only show toast if it's an error we haven't already handled
       const message = reason?.message || String(reason);
       if (!message.includes('aborted') && !message.includes('Canceled') && !message.includes('Unauthorized')) {
-        toast.error('An unexpected error occurred. Please try again.');
+        toast.error(`An unexpected error occurred: ${message.substring(0, 50)}`);
       }
     };
 
@@ -355,6 +362,9 @@ function AppContent() {
         }
         toast.success('Successfully logged in!');
       }
+    } catch (error: any) {
+      console.error('Login error:', error);
+      throw error;
     } finally {
       setIsLoggingIn(false);
     }
@@ -395,16 +405,24 @@ function AppContent() {
         if (error.message.toLowerCase().includes('rate limit')) {
           throw new Error('Email rate limit exceeded. Please wait a while before trying again, or increase the limit in your Supabase dashboard (Authentication -> Rate Limits).');
         }
+        if (error.message.toLowerCase().includes('user already registered') || error.message.toLowerCase().includes('already exists')) {
+          throw new Error('An account with this email already exists. Please log in instead.');
+        }
         throw error;
       }
 
       if (data.session) {
         // Sign out immediately to prevent auto-login
         await supabase.auth.signOut();
-        return 'Your account has been created. Please check your email and verify your address before logging in.';
+        return 'Account created! Please check your email (including spam) to verify your account before logging in.';
+      } else if (data.user && !data.session) {
+        return 'Account created! Please check your email (including spam) to verify your account before logging in.';
       } else {
-        return 'Your account has been created. Please check your email and verify your address before logging in.';
+        return 'Account created! Please check your email (including spam) to verify your account before logging in.';
       }
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      throw error;
     } finally {
       setIsLoggingIn(false);
     }
@@ -417,6 +435,20 @@ function AppContent() {
 
     setIsLoggingIn(true);
     try {
+      // Try local reset first
+      try {
+        const localData = await apiClient('/api/auth/reset-password', {
+          method: 'POST',
+          body: JSON.stringify({ email: username }),
+          showToast: false
+        });
+        if (localData && localData.success) {
+          return 'If an account exists, a password reset link has been sent. Please check your email.';
+        }
+      } catch (localError) {
+        // Local reset failed, try Supabase
+      }
+
       const { error } = await supabase.auth.resetPasswordForEmail(username, {
         redirectTo: `${window.location.origin}/update-password`,
       });
@@ -428,7 +460,10 @@ function AppContent() {
         throw error;
       }
 
-      return 'Password reset link sent! Please check your email.';
+      return 'If an account exists, a password reset link has been sent. Please check your email.';
+    } catch (error: any) {
+      console.error('Reset password error:', error);
+      throw error;
     } finally {
       setIsLoggingIn(false);
     }
@@ -465,9 +500,6 @@ function AppContent() {
   };
 
   const fetchApiKeys = async () => {
-    // Only fetch API keys if user is logged in
-    if (!user) return;
-
     try {
       const data = await apiClient<ApiKey[]>('/api/keys', { showToast: false });
       if (Array.isArray(data)) {
@@ -531,10 +563,16 @@ function AppContent() {
     localStorage.setItem('linkHistory', JSON.stringify(newHistory));
   };
 
-  const deleteFromHistory = (id: string) => {
+  const deleteFromHistory = async (id: string) => {
     const newHistory = history.filter(item => item.id !== id);
     saveHistory(newHistory);
     toast.success('Deleted from history');
+  };
+
+  const bulkDeleteFromHistory = async (ids: string[]) => {
+    const newHistory = history.filter(item => !ids.includes(item.id));
+    saveHistory(newHistory);
+    toast.success(`Deleted ${ids.length} items from history`);
   };
 
   const clearHistory = () => {
@@ -620,15 +658,26 @@ function AppContent() {
       return;
     }
 
+    if (!url.trim()) {
+      toast.error('Please enter a URL to shorten');
+      setHasError(true);
+      return;
+    }
+
     setLoading(true);
     setHasError(false);
 
     try {
       // Validate URL
+      let validUrl = url.trim();
+      if (!/^https?:\/\//i.test(validUrl)) {
+        validUrl = `http://${validUrl}`;
+      }
+
       try {
-        new URL(url);
+        new URL(validUrl);
       } catch {
-        toast.error('Please enter a valid URL');
+        toast.error('Please enter a valid URL (e.g., https://example.com)');
         setHasError(true);
         setLoading(false);
         return;
@@ -638,7 +687,7 @@ function AppContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          url,
+          url: validUrl,
           domainId: selectedDomainId || undefined,
           expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined
         }),
@@ -649,12 +698,16 @@ function AppContent() {
       const protocol = window.location.protocol;
       const constructedShortUrl = `${protocol}//${domain}/${data.id}`;
 
+      if (!data || !data.id) {
+        throw new Error('Invalid response from server');
+      }
+
       setShortUrl(constructedShortUrl);
       
       // Add to history
       const newItem: HistoryItem = {
         id: data.id,
-        originalUrl: url,
+        originalUrl: validUrl,
         shortUrl: constructedShortUrl,
         timestamp: Date.now(),
         expiresAt: expiresAt || null
@@ -672,6 +725,7 @@ function AppContent() {
       setExpiresAt('');
     } catch (error) {
       setHasError(true);
+      toast.error('Failed to shorten link. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -1074,13 +1128,31 @@ function AppContent() {
             
             setIsLoggingIn(true);
             try {
-              const { error } = await supabase.auth.updateUser({ password: newPassword });
-              if (error) throw error;
-              toast.success('Password updated successfully!');
-              setTimeout(() => {
-                window.history.replaceState(null, '', '/');
-                window.location.reload();
-              }, 1500);
+              const urlParams = new URLSearchParams(window.location.search);
+              const token = urlParams.get('token');
+              
+              if (token) {
+                // Local reset
+                await apiClient('/api/auth/update-password', {
+                  method: 'POST',
+                  body: JSON.stringify({ token, password: newPassword }),
+                  showToast: false
+                });
+                toast.success('Password updated successfully! Please log in.');
+                setTimeout(() => {
+                  window.history.replaceState(null, '', '/login');
+                  window.location.reload();
+                }, 1500);
+              } else {
+                // Supabase reset
+                const { error } = await supabase.auth.updateUser({ password: newPassword });
+                if (error) throw error;
+                toast.success('Password updated successfully!');
+                setTimeout(() => {
+                  window.history.replaceState(null, '', '/');
+                  window.location.reload();
+                }, 1500);
+              }
             } catch (error: any) {
               toast.error(error.message || 'Failed to update password');
             } finally {
@@ -1737,6 +1809,7 @@ function AppContent() {
               history={history}
               theme={theme}
               onDelete={deleteFromHistory}
+              onBulkDelete={bulkDeleteFromHistory}
               onClear={() => setIsClearHistoryModalOpen(true)}
               openShareModal={openShareModal}
               openQrModal={openQrModal}
@@ -1804,6 +1877,7 @@ function AppContent() {
             onGenerateApiKey={handleGenerateApiKey}
             onDeleteApiKey={handleDeleteApiKey}
             onDismissMessage={handleDismissMessage}
+            onOpenFeedback={() => setIsFeedbackModalOpen(true)}
           />
         ) : view === 'admin' ? (
           <AdminView theme={theme} />
@@ -1820,12 +1894,20 @@ function AppContent() {
           <SupportView theme={theme} />
         ) : null}
 
-        {selectedPlan && (
+        {isPaymentModalOpen && selectedPlan && (
           <PaymentModal 
             isOpen={isPaymentModalOpen}
             onClose={() => setIsPaymentModalOpen(false)}
             onConfirm={handleRequestUpgrade}
             plan={selectedPlan}
+            theme={theme}
+          />
+        )}
+
+        {isFeedbackModalOpen && (
+          <FeedbackModal 
+            isOpen={isFeedbackModalOpen}
+            onClose={() => setIsFeedbackModalOpen(false)}
             theme={theme}
           />
         )}

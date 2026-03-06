@@ -73,6 +73,8 @@ export const DeleteUserModal: React.FC<DeleteUserModalProps> = ({ isOpen, onClos
                     try {
                       await onConfirm();
                       onClose();
+                    } catch (error) {
+                      // Error handled by parent
                     } finally {
                       setIsDeleting(false);
                     }

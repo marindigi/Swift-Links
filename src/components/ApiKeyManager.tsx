@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Key, Plus, Trash2, Loader2, Copy, AlertTriangle } from 'lucide-react';
+import { Key, Plus, Trash2, Copy, Check } from 'lucide-react';
+import { Button } from './Button';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import toast from 'react-hot-toast';
@@ -30,6 +31,7 @@ export function ApiKeyManager({
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +66,17 @@ export function ApiKeyManager({
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
+      toast.success('Copied to clipboard');
+    } catch (error) {
+      toast.error('Failed to copy to clipboard');
+    }
+  };
+
+  const handleCopyKey = async (id: string, key: string) => {
+    try {
+      await navigator.clipboard.writeText(key);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
       toast.success('Copied to clipboard');
     } catch (error) {
       toast.error('Failed to copy to clipboard');
@@ -107,15 +120,13 @@ export function ApiKeyManager({
               <Copy size={18} />
             </button>
           </div>
-          <button
+          <Button
             onClick={() => setGeneratedKey(null)}
-            className={cn(
-              "mt-6 w-full py-3 rounded-xl font-bold transition-colors",
-              theme === 'dark' ? "bg-emerald-500 text-white hover:bg-emerald-600" : "bg-emerald-500 text-white hover:bg-emerald-600"
-            )}
+            variant="emerald"
+            className="mt-6 w-full"
           >
             I have saved my key
-          </button>
+          </Button>
         </motion.div>
       ) : (
         <>
@@ -133,17 +144,15 @@ export function ApiKeyManager({
                     theme === 'dark' ? "bg-white/5 border-white/10 text-white" : "bg-gray-50 border-gray-200 text-gray-900"
                   )}
                 />
-                <button 
+                <Button 
                   type="submit"
+                  isLoading={isGenerating}
                   disabled={isGenerating || !newKeyName.trim()}
-                  className={cn(
-                    "font-bold px-6 py-3 rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-brand/20 flex items-center justify-center gap-2 shrink-0",
-                    theme === 'dark' ? "bg-brand text-white hover:bg-brand-hover" : "bg-brand text-white hover:bg-brand-hover"
-                  )}
+                  className="shrink-0"
                 >
-                  {isGenerating ? <Loader2 className="animate-spin" size={18} /> : <Plus size={18} />}
+                  <Plus size={18} className="mr-2" />
                   <span>Generate Key</span>
-                </button>
+                </Button>
               </div>
               <p className="text-[10px] text-gray-500 px-1 uppercase tracking-widest font-bold">
                 API keys allow you to authenticate requests to the cutly.us API. Keep them secure.
@@ -192,25 +201,44 @@ export function ApiKeyManager({
                   </div>
 
                   <div className="flex items-center gap-2 self-end sm:self-auto">
+                    {apiKey.key && (
+                      <Button
+                        onClick={() => handleCopyKey(apiKey.id, apiKey.key)}
+                        variant="ghost"
+                        size="sm"
+                        className={cn(copiedId === apiKey.id && "text-emerald-500 hover:text-emerald-600")}
+                        title="Copy Key"
+                      >
+                        {copiedId === apiKey.id ? (
+                          <>
+                            <Check size={16} className="mr-1 text-emerald-500" />
+                            <span className="text-emerald-500">Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={16} className="mr-1" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </Button>
+                    )}
                     {confirmDeleteId === apiKey.id ? (
                       <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
-                        <button 
+                        <Button 
                           onClick={() => handleDelete(apiKey.id)}
-                          disabled={!!isDeletingId}
-                          className="text-xs font-bold text-red-400 hover:text-red-300 px-3 py-2 rounded-lg bg-red-400/10 flex items-center gap-2"
+                          isLoading={isDeletingId === apiKey.id}
+                          variant="danger"
+                          size="sm"
                         >
-                          {isDeletingId === apiKey.id ? <Loader2 className="animate-spin" size={14} /> : <AlertTriangle size={14} />}
                           Confirm
-                        </button>
-                        <button 
+                        </Button>
+                        <Button 
                           onClick={() => setConfirmDeleteId(null)}
-                          className={cn(
-                            "text-xs px-3 py-2 rounded-lg transition-colors",
-                            theme === 'dark' ? "text-gray-500 hover:text-white hover:bg-white/5" : "text-gray-400 hover:text-gray-900 hover:bg-gray-100"
-                          )}
+                          variant="ghost"
+                          size="sm"
                         >
                           Cancel
-                        </button>
+                        </Button>
                       </div>
                     ) : (
                       <button 

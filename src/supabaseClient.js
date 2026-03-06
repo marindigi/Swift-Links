@@ -1,7 +1,10 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
-// Replace these variables with your actual Supabase URL and Public Key
-const SUPABASE_URL = "https://agqxtvotqgndohhtdvov.supabase.co";
-const SUPABASE_PUBLIC_KEY = "sb_publishable_kUE5pMvbhzYTS5HgTUDauQ_i9iKzn-I";
+// ------------------------------------------------------------------
+// PASTE YOUR SUPABASE URL AND PUBLIC KEY HERE
+// ------------------------------------------------------------------
+const SUPABASE_URL = "https://lqrcrqcgzticbzazxorc.supabase.co";
+const SUPABASE_PUBLIC_KEY = "sb_publishable_lhizgd0mwyTZ8XYUpJO6sg_YkRomYze";
+// ------------------------------------------------------------------
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLIC_KEY);
