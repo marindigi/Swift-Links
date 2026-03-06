@@ -1,6 +1,13 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, ExternalLink, Calendar, Globe, MousePointer2, Clock, Link as LinkIcon, Trash2, Loader2, Edit2, Save } from 'lucide-react';
+import { 
+  X, Calendar, Clock, MousePointer2, Globe, 
+  Trash2, Edit3, ExternalLink, Copy,
+  AlertCircle, Save
+} from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { HistoryItem } from '../types';
+import { Button } from './Button';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -8,268 +15,330 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-interface LinkDetails {
-  id: string;
-  originalUrl: string;
-  shortUrl: string;
-  clicks: number;
-  expiresAt: string | null;
-  domainName: string | null;
-  createdAt: string;
-}
-
 interface LinkDetailsModalProps {
+  item: HistoryItem | null;
   isOpen: boolean;
   onClose: () => void;
-  link: LinkDetails | null;
   theme: 'light' | 'dark';
   onDelete: (id: string) => Promise<void>;
-  onUpdate: (id: string, updates: { originalUrl: string; expiresAt: string | null }) => Promise<void>;
+  onUpdate: (id: string, data: { originalUrl?: string; expiresAt?: string | null }) => Promise<void>;
 }
 
 export const LinkDetailsModal: React.FC<LinkDetailsModalProps> = ({
+  item,
   isOpen,
   onClose,
-  link,
   theme,
   onDelete,
   onUpdate
 }) => {
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [originalUrl, setOriginalUrl] = useState(link?.originalUrl || '');
-  const [expiresAt, setExpiresAt] = useState(link?.expiresAt || '');
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [editUrl, setEditUrl] = useState(item?.originalUrl || '');
+  const [editExpiresAt, setEditExpiresAt] = useState(item?.expiresAt ? new Date(item.expiresAt).toISOString().slice(0, 16) : '');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  if (!link) return null;
+  React.useEffect(() => {
+    if (item) {
+      setEditUrl(item.originalUrl);
+      setEditExpiresAt(item.expiresAt ? new Date(item.expiresAt).toISOString().slice(0, 16) : '');
+    }
+  }, [item]);
 
-  const handleUpdate = async () => {
-    setIsUpdating(true);
+  if (!item) return null;
+
+  const handleSave = async () => {
+    if (!editUrl) {
+      toast.error('URL is required');
+      return;
+    }
+    
+    setIsSaving(true);
     try {
-      await onUpdate(link.id, { originalUrl, expiresAt: expiresAt || null });
+      await onUpdate(item.id, {
+        originalUrl: editUrl,
+        expiresAt: editExpiresAt ? new Date(editExpiresAt).toISOString() : null
+      });
       setIsEditing(false);
+      toast.success('Link updated successfully');
     } catch (error) {
-      // Error is handled by the parent component or apiClient, but we need to catch it here to prevent unhandled rejection
-      console.error('Failed to update link:', error);
+      // Error handled by parent
     } finally {
-      setIsUpdating(false);
+      setIsSaving(false);
     }
   };
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await onDelete(item.id);
+      onClose();
+    } catch (error) {
+      // Error handled by parent
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const domainName = item.shortUrl.split('/')[2];
 
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <motion.div
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+          <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/80 backdrop-blur-md"
           />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
             className={cn(
-              "relative w-full max-w-lg overflow-hidden rounded-3xl border shadow-2xl",
+              "relative w-full max-w-lg border rounded-[32px] overflow-hidden shadow-2xl",
               theme === 'dark' ? "bg-[#0a0a0a] border-white/10" : "bg-white border-gray-200"
             )}
           >
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-white/5 p-6">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10 text-brand">
-                  <LinkIcon size={20} />
-                </div>
-                <div>
-                  <h3 className={cn(
-                    "text-lg font-bold",
-                    theme === 'dark' ? "text-white" : "text-gray-900"
-                  )}>Link Details</h3>
-                  <p className="text-xs text-gray-500 font-mono">{link.id}</p>
-                </div>
-              </div>
-              <button
-                onClick={onClose}
-                className="rounded-full p-2 text-gray-500 hover:bg-white/5 hover:text-white transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="p-6 space-y-6">
-              {/* Main Stats */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className={cn(
-                  "p-4 rounded-2xl border transition-all",
-                  theme === 'dark' ? "bg-white/5 border-white/5" : "bg-gray-50 border-gray-100"
-                )}>
-                  <div className="flex items-center gap-2 text-gray-500 mb-1">
-                    <MousePointer2 size={14} />
-                    <span className="text-[10px] uppercase font-bold tracking-widest">Total Clicks</span>
+            <div className="p-6 sm:p-8 border-b border-gray-100 dark:border-white/5">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center text-brand">
+                    <Globe size={20} />
                   </div>
-                  <p className="text-2xl font-bold text-brand">{link.clicks}</p>
+                  <div>
+                    <h2 className={cn(
+                      "text-xl font-display font-bold",
+                      theme === 'dark' ? "text-white" : "text-gray-900"
+                    )}>Link Details</h2>
+                    <p className="text-xs text-gray-500 font-medium">View and manage your short link</p>
+                  </div>
                 </div>
+                <button 
+                  onClick={onClose}
+                  className={cn(
+                    "p-2 rounded-xl transition-colors",
+                    theme === 'dark' ? "text-gray-500 hover:text-white hover:bg-white/5" : "text-gray-400 hover:text-gray-900 hover:bg-gray-100"
+                  )}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
                 <div className={cn(
-                  "p-4 rounded-2xl border transition-all",
-                  theme === 'dark' ? "bg-white/5 border-white/5" : "bg-gray-50 border-gray-100"
+                  "p-4 rounded-2xl border",
+                  theme === 'dark' ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-100"
                 )}>
-                  <div className="flex items-center gap-2 text-gray-500 mb-1">
-                    <Globe size={14} />
-                    <span className="text-[10px] uppercase font-bold tracking-widest">Domain</span>
+                  <div className="flex items-center justify-between gap-4 mb-2">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Short URL</span>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(item.shortUrl);
+                          toast.success('Copied!');
+                        }}
+                        className="p-1.5 rounded-lg hover:bg-brand/10 text-gray-400 hover:text-brand transition-all"
+                      >
+                        <Copy size={14} />
+                      </button>
+                      <a 
+                        href={item.shortUrl} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="p-1.5 rounded-lg hover:bg-brand/10 text-gray-400 hover:text-brand transition-all"
+                      >
+                        <ExternalLink size={14} />
+                      </a>
+                    </div>
                   </div>
                   <p className={cn(
-                    "text-sm font-bold truncate",
+                    "text-lg font-display font-bold break-all",
                     theme === 'dark' ? "text-white" : "text-gray-900"
-                  )}>{link.domainName || window.location.hostname}</p>
-                </div>
-              </div>
-
-              {/* URLs */}
-              <div className="space-y-4">
-                <div>
-                  <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-2 block">Short URL</label>
-                  <div className={cn(
-                    "flex items-center justify-between p-3 rounded-xl border font-mono text-xs",
-                    theme === 'dark' ? "bg-black/40 border-white/5 text-emerald-400" : "bg-gray-50 border-gray-200 text-emerald-600"
                   )}>
-                    <span className="truncate mr-4">{link.shortUrl}</span>
-                    <a href={link.shortUrl} target="_blank" rel="noreferrer" className="shrink-0 hover:text-emerald-300">
-                      <ExternalLink size={14} />
-                    </a>
-                  </div>
+                    {item.shortUrl.replace(/^https?:\/\//, '')}
+                  </p>
                 </div>
-                <div>
-                  <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-2 block">Original Destination</label>
+
+                <div className={cn(
+                  "p-4 rounded-2xl border",
+                  theme === 'dark' ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-100"
+                )}>
+                  <div className="flex items-center justify-between gap-4 mb-2">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Original URL</span>
+                    {!isEditing && (
+                      <button 
+                        onClick={() => setIsEditing(true)}
+                        className="p-1.5 rounded-lg hover:bg-brand/10 text-gray-400 hover:text-brand transition-all"
+                      >
+                        <Edit3 size={14} />
+                      </button>
+                    )}
+                  </div>
                   {isEditing ? (
-                    <input
-                      type="url"
-                      value={originalUrl}
-                      onChange={(e) => setOriginalUrl(e.target.value)}
-                      className={cn(
-                        "w-full p-3 rounded-xl border text-xs",
-                        theme === 'dark' ? "bg-black/40 border-white/5 text-white" : "bg-gray-50 border-gray-200 text-gray-900"
-                      )}
-                    />
-                  ) : (
-                    <div className={cn(
-                      "p-3 rounded-xl border text-xs break-all",
-                      theme === 'dark' ? "bg-black/40 border-white/5 text-gray-400" : "bg-gray-50 border-gray-200 text-gray-600"
-                    )}>
-                      {link.originalUrl}
+                    <div className="space-y-3">
+                      <input 
+                        type="url"
+                        value={editUrl}
+                        onChange={(e) => setEditUrl(e.target.value)}
+                        className={cn(
+                          "w-full px-4 py-2 rounded-xl border text-sm focus:ring-2 focus:ring-brand/50 outline-none transition-all",
+                          theme === 'dark' ? "bg-black/40 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"
+                        )}
+                        placeholder="Enter original URL"
+                      />
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          size="sm" 
+                          onClick={handleSave}
+                          isLoading={isSaving}
+                        >
+                          <Save size={14} className="mr-2" />
+                          Save
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          onClick={() => {
+                            setIsEditing(false);
+                            setEditUrl(item.originalUrl);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
                     </div>
+                  ) : (
+                    <p className={cn(
+                      "text-sm break-all font-medium",
+                      theme === 'dark' ? "text-gray-300" : "text-gray-600"
+                    )}>
+                      {item.originalUrl}
+                    </p>
                   )}
                 </div>
               </div>
+            </div>
 
-              {/* Dates */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
-                <div className="flex items-start gap-3">
-                  <div className="mt-1 text-gray-500">
-                    <Calendar size={16} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Created</p>
-                    <p className={cn(
-                      "text-xs font-medium",
-                      theme === 'dark' ? "text-gray-300" : "text-gray-700"
-                    )}>{new Date(link.createdAt).toLocaleDateString(undefined, { dateStyle: 'long' })}</p>
-                  </div>
+            {/* Stats Grid */}
+            <div className="p-6 sm:p-8 grid grid-cols-2 gap-4">
+              <div className={cn(
+                "p-4 rounded-2xl border",
+                theme === 'dark' ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-100"
+              )}>
+                <div className="flex items-center gap-2 mb-2 text-gray-400">
+                  <Calendar size={14} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Created</span>
                 </div>
-                <div className="flex items-start gap-3">
-                  <div className="mt-1 text-gray-500">
-                    <Clock size={16} />
-                  </div>
-                  <div className="w-full sm:w-auto">
-                    <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Expiration</p>
-                    {isEditing ? (
-                      <input
-                        type="datetime-local"
-                        value={expiresAt ? new Date(expiresAt).toISOString().slice(0, 16) : ''}
-                        onChange={(e) => setExpiresAt(e.target.value)}
-                        className={cn(
-                          "w-full p-1 rounded-lg border text-xs",
-                          theme === 'dark' ? "bg-black/40 border-white/5 text-white" : "bg-gray-50 border-gray-200 text-gray-900"
-                        )}
-                      />
-                    ) : (
-                      <p className={cn(
-                        "text-xs font-medium",
-                        link.expiresAt ? "text-amber-500" : "text-gray-500"
-                      )}>
-                        {link.expiresAt 
-                          ? new Date(link.expiresAt).toLocaleDateString(undefined, { dateStyle: 'long' }) 
-                          : 'Never'}
-                      </p>
+                <p className={cn(
+                  "text-sm font-bold",
+                  theme === 'dark' ? "text-white" : "text-gray-900"
+                )}>
+                  {new Date(item.timestamp).toLocaleDateString()}
+                </p>
+              </div>
+
+              <div className={cn(
+                "p-4 rounded-2xl border",
+                theme === 'dark' ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-100"
+              )}>
+                <div className="flex items-center gap-2 mb-2 text-gray-400">
+                  <MousePointer2 size={14} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Total Clicks</span>
+                </div>
+                <p className={cn(
+                  "text-sm font-bold",
+                  theme === 'dark' ? "text-white" : "text-gray-900"
+                )}>
+                  {item.clicks || 0}
+                </p>
+              </div>
+
+              <div className={cn(
+                "p-4 rounded-2xl border",
+                theme === 'dark' ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-100"
+              )}>
+                <div className="flex items-center gap-2 mb-2 text-gray-400">
+                  <Globe size={14} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Domain</span>
+                </div>
+                <p className={cn(
+                  "text-sm font-bold",
+                  theme === 'dark' ? "text-white" : "text-gray-900"
+                )}>
+                  {domainName}
+                </p>
+              </div>
+
+              <div className={cn(
+                "p-4 rounded-2xl border",
+                theme === 'dark' ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-100"
+              )}>
+                <div className="flex items-center gap-2 mb-2 text-gray-400">
+                  <Clock size={14} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Expires</span>
+                </div>
+                {isEditing ? (
+                  <input 
+                    type="datetime-local"
+                    value={editExpiresAt}
+                    onChange={(e) => setEditExpiresAt(e.target.value)}
+                    className={cn(
+                      "w-full bg-transparent text-xs font-bold outline-none",
+                      theme === 'dark' ? "text-white" : "text-gray-900"
                     )}
-                  </div>
-                </div>
+                  />
+                ) : (
+                  <p className={cn(
+                    "text-sm font-bold",
+                    item.expiresAt ? (theme === 'dark' ? "text-amber-400" : "text-amber-600") : "text-gray-400"
+                  )}>
+                    {item.expiresAt ? new Date(item.expiresAt).toLocaleDateString() : 'Never'}
+                  </p>
+                )}
               </div>
             </div>
 
-            {/* Footer */}
-            <div className="flex flex-col sm:flex-row items-center justify-end gap-3 bg-white/5 p-6 border-t border-white/5">
-              {isEditing ? (
-                <>
-                  <button
-                    onClick={() => setIsEditing(false)}
-                    className={cn(
-                      "w-full sm:w-auto px-4 py-2 text-xs font-bold rounded-xl transition-colors",
-                      theme === 'dark' ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-gray-900"
-                    )}
+            {/* Footer Actions */}
+            <div className="p-6 sm:p-8 bg-gray-50 dark:bg-white/5 border-t border-gray-100 dark:border-white/5 flex items-center justify-between gap-4">
+              {showDeleteConfirm ? (
+                <div className="flex items-center gap-2 w-full animate-in fade-in slide-in-from-bottom-2">
+                  <div className="flex-1 text-xs font-bold text-red-500 flex items-center gap-2">
+                    <AlertCircle size={14} />
+                    Are you sure?
+                  </div>
+                  <Button 
+                    variant="danger" 
+                    size="sm" 
+                    onClick={handleDelete}
+                    isLoading={isDeleting}
+                  >
+                    Yes, Delete
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setShowDeleteConfirm(false)}
                   >
                     Cancel
-                  </button>
-                  <button
-                    onClick={handleUpdate}
-                    disabled={isUpdating}
-                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold text-white bg-brand hover:bg-brand-hover rounded-xl transition-colors disabled:opacity-50"
-                  >
-                    {isUpdating ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
-                    Save Changes
-                  </button>
-                </>
+                  </Button>
+                </div>
               ) : (
                 <>
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold text-brand hover:bg-brand/10 rounded-xl transition-colors"
+                  <button 
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="flex items-center gap-2 text-xs font-bold text-red-500 hover:text-red-600 transition-colors uppercase tracking-widest"
                   >
-                    <Edit2 size={14} />
-                    Edit Link
-                  </button>
-                  <button
-                    onClick={async () => {
-                      if (confirm('Are you sure you want to delete this link?')) {
-                        setIsDeleting(true);
-                        try {
-                          await onDelete(link.id);
-                          onClose();
-                        } catch (error) {
-                          // Error handled by parent or apiClient
-                        } finally {
-                          setIsDeleting(false);
-                        }
-                      }
-                    }}
-                    disabled={isDeleting}
-                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold text-red-400 hover:bg-red-500/10 rounded-xl transition-colors disabled:opacity-50"
-                  >
-                    {isDeleting ? <Loader2 className="animate-spin" size={14} /> : <Trash2 size={14} />}
+                    <Trash2 size={16} />
                     Delete Link
                   </button>
-                  <button
-                    onClick={onClose}
-                    disabled={isDeleting}
-                    className={cn(
-                      "w-full sm:w-auto px-6 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50",
-                      theme === 'dark' ? "bg-white/10 text-white hover:bg-white/20" : "bg-gray-900 text-white hover:bg-gray-800"
-                    )}
-                  >
-                    Close
-                  </button>
+                  <Button onClick={onClose}>
+                    Close Details
+                  </Button>
                 </>
               )}
             </div>

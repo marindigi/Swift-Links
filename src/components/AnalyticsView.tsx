@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, BarChart2, History, Globe, Link as LinkIcon, Calendar, Filter, RefreshCw, MousePointer2, MapPin, ExternalLink, Clock, Activity, Zap, List } from 'lucide-react';
+import { Loader2, BarChart2, History, Globe, Link as LinkIcon, Calendar, Filter, RefreshCw, MousePointer2, MapPin, ExternalLink, Clock, Activity, Zap, List, Smartphone, Monitor, Tablet, Cpu, Layers, Layout } from 'lucide-react';
 import { ResponsiveContainer, AreaChart as ReAreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend } from 'recharts';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -30,8 +30,55 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [selectedPreset, setSelectedPreset] = useState('30d');
+  const [selectedReferrer, setSelectedReferrer] = useState('All');
   const [isAutoRefreshEnabled, setIsAutoRefreshEnabled] = useState(true);
   const [isClicksModalOpen, setIsClicksModalOpen] = useState(false);
+
+  const referrers = React.useMemo(() => {
+    if (!analyticsData?.clicks) return ['All'];
+    const refs = new Set<string>();
+    refs.add('All');
+    analyticsData.clicks.forEach((click: any) => {
+        let ref = 'Direct';
+        if (click.referer && click.referer !== 'direct') {
+          try {
+            const url = new URL(click.referer);
+            ref = url.hostname;
+          } catch (e) {
+            ref = click.referer;
+          }
+        }
+        refs.add(ref);
+    });
+    return Array.from(refs);
+  }, [analyticsData?.clicks]);
+
+  const filteredClicks = React.useMemo(() => {
+    if (!analyticsData?.clicks) return [];
+    if (selectedReferrer === 'All') return analyticsData.clicks;
+    return analyticsData.clicks.filter((click: any) => {
+        let ref = 'Direct';
+        if (click.referer && click.referer !== 'direct') {
+          try {
+            const url = new URL(click.referer);
+            ref = url.hostname;
+          } catch (e) {
+            ref = click.referer;
+          }
+        }
+        return ref === selectedReferrer;
+    });
+  }, [analyticsData?.clicks, selectedReferrer]);
+
+  const recentClicks = React.useMemo(() => {
+    if (!analyticsData?.clicks || !Array.isArray(analyticsData.clicks)) return [];
+    const clicks = [...analyticsData.clicks];
+    // Use a stable key for the Map to deduplicate by ID if present
+    const unique = Array.from(new Map(clicks.map((c, i) => [c.id || `temp-${i}`, c])).values());
+    return unique
+      .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 10);
+  }, [analyticsData?.clicks]);
 
   useEffect(() => {
     if (!isAutoRefreshEnabled) return;
@@ -112,7 +159,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     );
   }
 
-  if (!analyticsData || analyticsData.urls.length === 0) {
+  if (!analyticsData || !Array.isArray(analyticsData.urls) || analyticsData.urls.length === 0) {
     return (
       <div className="text-center py-20">
         <div className="p-4 bg-brand/5 rounded-full inline-flex mb-6">
@@ -130,7 +177,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     );
   }
 
-  const totalClicks = analyticsData.urls.reduce((acc: number, curr: any) => acc + (curr.clicks || 0), 0);
+  const totalClicks = (analyticsData.urls || []).reduce((acc: number, curr: any) => acc + (curr.clicks || 0), 0);
   
   const uniqueUrls = Array.isArray(analyticsData.urls) 
     ? analyticsData.urls.filter((item: any, index: number, self: any[]) =>
@@ -140,16 +187,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
 
   const topUrls = [...uniqueUrls].sort((a, b) => (b.clicks || 0) - (a.clicks || 0)).slice(0, 5);
   
-  const recentClicks = React.useMemo(() => {
-    if (!analyticsData?.clicks) return [];
-    const clicks = [...analyticsData.clicks];
-    const unique = Array.from(new Map(clicks.map(c => [c.id || Math.random(), c])).values());
-    return unique
-      .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-      .slice(0, 10);
-  }, [analyticsData?.clicks]);
-
-  const clicksByDate = analyticsData.clicks.reduce((acc: any, click: any) => {
+  const clicksByDate = (filteredClicks || []).reduce((acc: any, click: any) => {
     const date = new Date(click.timestamp).toLocaleDateString();
     acc[date] = (acc[date] || 0) + 1;
     return acc;
@@ -157,23 +195,35 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
 
   const chartData = Object.entries(clicksByDate).map(([date, count]) => ({
     date,
-    clicks: count
+    clicks: count as number
   })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   // Distribution by Country
-  const countryDist = analyticsData.clicks.reduce((acc: any, click: any) => {
+  const countryDist = (filteredClicks || []).reduce((acc: any, click: any) => {
     const country = click.country || 'Unknown';
     acc[country] = (acc[country] || 0) + 1;
     return acc;
   }, {});
 
   const countryData = Object.entries(countryDist)
-    .map(([name, value]) => ({ name, value }))
+    .map(([name, value]) => ({ name, value: value as number }))
     .sort((a: any, b: any) => b.value - a.value)
     .slice(0, 7);
 
+  // Distribution by City
+  const cityDist = (filteredClicks || []).reduce((acc: any, click: any) => {
+    const city = click.city || 'Unknown';
+    acc[city] = (acc[city] || 0) + 1;
+    return acc;
+  }, {});
+
+  const cityData = Object.entries(cityDist)
+    .map(([name, value]) => ({ name, value: value as number }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 7);
+
   // Distribution by Referrer
-  const referrerDist = analyticsData.clicks.reduce((acc: any, click: any) => {
+  const referrerDist = (filteredClicks || []).reduce((acc: any, click: any) => {
     let ref = 'Direct';
     if (click.referer && click.referer !== 'direct') {
       try {
@@ -188,12 +238,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   }, {});
 
   const referrerData = Object.entries(referrerDist)
-    .map(([name, value]) => ({ name, value }))
+    .map(([name, value]) => ({ name, value: value as number }))
     .sort((a: any, b: any) => b.value - a.value)
     .slice(0, 7);
 
   // Distribution by Browser
-  const browserDist = analyticsData.clicks.reduce((acc: any, click: any) => {
+  const browserDist = (filteredClicks || []).reduce((acc: any, click: any) => {
     const browser = click.browser || 'Unknown';
     acc[browser] = (acc[browser] || 0) + 1;
     return acc;
@@ -202,10 +252,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   const browserData = Object.entries(browserDist)
     .map(([name, value]) => ({ name, value: value as number }))
     .sort((a, b) => b.value - a.value)
-    .slice(0, 5);
+    .slice(0, 7);
 
   // Distribution by OS
-  const osDist = analyticsData.clicks.reduce((acc: any, click: any) => {
+  const osDist = (filteredClicks || []).reduce((acc: any, click: any) => {
     const os = click.os || 'Unknown';
     acc[os] = (acc[os] || 0) + 1;
     return acc;
@@ -214,10 +264,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   const osData = Object.entries(osDist)
     .map(([name, value]) => ({ name, value: value as number }))
     .sort((a, b) => b.value - a.value)
-    .slice(0, 5);
+    .slice(0, 7);
 
   // Distribution by Device
-  const deviceDist = analyticsData.clicks.reduce((acc: any, click: any) => {
+  const deviceDist = (filteredClicks || []).reduce((acc: any, click: any) => {
     const device = click.device || 'desktop';
     acc[device] = (acc[device] || 0) + 1;
     return acc;
@@ -226,6 +276,36 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   const deviceData = Object.entries(deviceDist)
     .map(([name, value]) => ({ name, value: value as number }))
     .sort((a, b) => b.value - a.value);
+
+  const totalClicksInView = (filteredClicks || []).length;
+  
+  const getDeviceIcon = (device: string) => {
+    switch (device.toLowerCase()) {
+      case 'mobile': return <Smartphone size={14} />;
+      case 'tablet': return <Tablet size={14} />;
+      case 'desktop': return <Monitor size={14} />;
+      default: return <Monitor size={14} />;
+    }
+  };
+
+  const getBrowserIcon = (browser: string) => {
+    const b = browser.toLowerCase();
+    if (b.includes('chrome')) return <Globe size={14} />;
+    if (b.includes('safari')) return <Globe size={14} />;
+    if (b.includes('firefox')) return <Globe size={14} />;
+    if (b.includes('edge')) return <Globe size={14} />;
+    return <Globe size={14} />;
+  };
+
+  const getOSIcon = (os: string) => {
+    const o = os.toLowerCase();
+    if (o.includes('windows')) return <Layout size={14} />;
+    if (o.includes('mac')) return <Cpu size={14} />;
+    if (o.includes('linux')) return <Cpu size={14} />;
+    if (o.includes('android')) return <Smartphone size={14} />;
+    if (o.includes('ios')) return <Smartphone size={14} />;
+    return <Layers size={14} />;
+  };
 
   return (
     <div className="w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 font-sans">
@@ -319,6 +399,21 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                 )}
               />
             </div>
+            <div className="relative flex-1">
+              <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
+              <select
+                value={selectedReferrer}
+                onChange={(e) => setSelectedReferrer(e.target.value)}
+                className={cn(
+                  "w-full pl-10 pr-4 py-2.5 rounded-xl border text-[11px] font-mono focus:outline-none focus:ring-2 focus:ring-brand/50 transition-all appearance-none cursor-pointer",
+                  theme === 'dark' ? "bg-black/40 border-white/10 text-white" : "bg-gray-50 border-gray-200 text-gray-900"
+                )}
+              >
+                {referrers.map(ref => (
+                  <option key={ref} value={ref}>{ref}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -343,7 +438,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -386,6 +481,30 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           <div className="mt-6 flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
             <span className="text-[10px] text-gray-500 font-bold tracking-widest uppercase">Real-time Data Stream</span>
+          </div>
+        </motion.div>
+
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className={cn(
+            "p-8 rounded-3xl border backdrop-blur-sm transition-all relative overflow-hidden group",
+            theme === 'dark' ? "bg-[#0a0a0a] border-white/10" : "bg-white border-gray-200 shadow-sm"
+          )}
+        >
+          <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-purple-500/20 to-transparent" />
+          
+          <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity">
+            <Activity size={80} />
+          </div>
+          <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-black mb-4">02.5 // Unique Visitors</p>
+          <h4 className="text-5xl font-mono font-bold text-purple-500 tracking-tighter">
+            {new Set((analyticsData.clicks || []).map((c: any) => c.userAgent)).size}
+          </h4>
+          <div className="mt-6 flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
+            <span className="text-[10px] text-gray-500 font-bold tracking-widest uppercase">Unique User Sessions</span>
           </div>
         </motion.div>
 
@@ -479,7 +598,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {/* Country Distribution */}
         <div className={cn(
           "p-8 rounded-3xl border backdrop-blur-sm transition-all relative overflow-hidden",
@@ -488,17 +607,17 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           <div className="absolute top-0 left-0 w-1 h-full bg-blue-500/20" />
           <h3 className="text-sm font-black uppercase tracking-[0.3em] mb-8 flex items-center gap-3">
             <Globe className="text-blue-500" size={18} />
-            Geographic Segmentation
+            Geographic
           </h3>
-          <div className="h-[280px] w-full">
+          <div className="h-[240px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={countryData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={70}
-                  outerRadius={95}
+                  innerRadius={60}
+                  outerRadius={85}
                   paddingAngle={8}
                   dataKey="value"
                   stroke="none"
@@ -520,38 +639,38 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                   verticalAlign="bottom" 
                   height={36} 
                   iconType="circle"
-                  formatter={(value) => <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500">{value}</span>}
+                  formatter={(value) => <span className="text-[9px] font-mono uppercase tracking-wider text-gray-500">{value}</span>}
                 />
               </PieChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Referrer Distribution */}
+        {/* City Distribution */}
         <div className={cn(
           "p-8 rounded-3xl border backdrop-blur-sm transition-all relative overflow-hidden",
           theme === 'dark' ? "bg-[#0a0a0a] border-white/10" : "bg-white border-gray-200 shadow-sm"
         )}>
-          <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500/20" />
+          <div className="absolute top-0 left-0 w-1 h-full bg-purple-500/20" />
           <h3 className="text-sm font-black uppercase tracking-[0.3em] mb-8 flex items-center gap-3">
-            <LinkIcon className="text-emerald-500" size={18} />
-            Traffic Acquisition
+            <MapPin className="text-purple-500" size={18} />
+            Top Cities
           </h3>
-          <div className="h-[280px] w-full">
+          <div className="h-[240px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={referrerData}
+                  data={cityData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={70}
-                  outerRadius={95}
+                  innerRadius={60}
+                  outerRadius={85}
                   paddingAngle={8}
                   dataKey="value"
                   stroke="none"
                 >
-                  {referrerData.map((_entry, index) => (
-                    <Cell key={`referrer-cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  {cityData.map((_entry, index) => (
+                    <Cell key={`city-cell-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip 
@@ -567,7 +686,54 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                   verticalAlign="bottom" 
                   height={36} 
                   iconType="circle"
-                  formatter={(value) => <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500">{value}</span>}
+                  formatter={(value) => <span className="text-[9px] font-mono uppercase tracking-wider text-gray-500">{value}</span>}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Referrer Distribution */}
+        <div className={cn(
+          "p-8 rounded-3xl border backdrop-blur-sm transition-all relative overflow-hidden",
+          theme === 'dark' ? "bg-[#0a0a0a] border-white/10" : "bg-white border-gray-200 shadow-sm"
+        )}>
+          <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500/20" />
+          <h3 className="text-sm font-black uppercase tracking-[0.3em] mb-8 flex items-center gap-3">
+            <LinkIcon className="text-emerald-500" size={18} />
+            Acquisition
+          </h3>
+          <div className="h-[240px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={referrerData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={85}
+                  paddingAngle={8}
+                  dataKey="value"
+                  stroke="none"
+                >
+                  {referrerData.map((_entry, index) => (
+                    <Cell key={`referrer-cell-${index}`} fill={COLORS[(index + 4) % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: theme === 'dark' ? '#0a0a0a' : '#fff',
+                    borderColor: theme === 'dark' ? '#ffffff10' : '#00000010',
+                    borderRadius: '12px',
+                    fontSize: '11px',
+                    fontFamily: 'monospace'
+                  }}
+                />
+                <Legend 
+                  verticalAlign="bottom" 
+                  height={36} 
+                  iconType="circle"
+                  formatter={(value) => <span className="text-[9px] font-mono uppercase tracking-wider text-gray-500">{value}</span>}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -578,21 +744,30 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Browser Distribution */}
         <div className={cn(
-          "p-8 rounded-3xl border backdrop-blur-sm transition-all relative overflow-hidden",
+          "p-8 rounded-3xl border backdrop-blur-sm transition-all relative overflow-hidden group",
           theme === 'dark' ? "bg-[#0a0a0a] border-white/10" : "bg-white border-gray-200 shadow-sm"
         )}>
-          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-6 text-gray-500">Browser Distribution</h3>
-          <div className="space-y-4">
+          <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity">
+            <Globe size={60} />
+          </div>
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-6 text-gray-500 flex items-center gap-2">
+            <Globe size={12} />
+            Browsers
+          </h3>
+          <div className="space-y-5">
             {browserData.map((item) => (
-              <div key={`browser-${item.name}`} className="space-y-1.5">
+              <div key={`browser-${item.name}`} className="space-y-2">
                 <div className="flex justify-between text-[11px] font-bold">
-                  <span className={theme === 'dark' ? "text-white" : "text-gray-900"}>{item.name}</span>
+                  <div className="flex items-center gap-2">
+                    {getBrowserIcon(item.name)}
+                    <span className={theme === 'dark' ? "text-white" : "text-gray-900"}>{item.name}</span>
+                  </div>
                   <span className="text-gray-500 font-mono">{item.value}</span>
                 </div>
                 <div className="h-1.5 w-full bg-gray-100 dark:bg-white/5 rounded-full overflow-hidden">
                   <motion.div 
                     initial={{ width: 0 }}
-                    animate={{ width: `${(item.value / totalClicks) * 100}%` }}
+                    animate={{ width: `${totalClicksInView > 0 ? (item.value / totalClicksInView) * 100 : 0}%` }}
                     className="h-full bg-brand"
                   />
                 </div>
@@ -603,21 +778,30 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
 
         {/* OS Distribution */}
         <div className={cn(
-          "p-8 rounded-3xl border backdrop-blur-sm transition-all relative overflow-hidden",
+          "p-8 rounded-3xl border backdrop-blur-sm transition-all relative overflow-hidden group",
           theme === 'dark' ? "bg-[#0a0a0a] border-white/10" : "bg-white border-gray-200 shadow-sm"
         )}>
-          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-6 text-gray-500">Operating Systems</h3>
-          <div className="space-y-4">
+          <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity">
+            <Cpu size={60} />
+          </div>
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-6 text-gray-500 flex items-center gap-2">
+            <Cpu size={12} />
+            Operating Systems
+          </h3>
+          <div className="space-y-5">
             {osData.map((item) => (
-              <div key={`os-${item.name}`} className="space-y-1.5">
+              <div key={`os-${item.name}`} className="space-y-2">
                 <div className="flex justify-between text-[11px] font-bold">
-                  <span className={theme === 'dark' ? "text-white" : "text-gray-900"}>{item.name}</span>
+                  <div className="flex items-center gap-2">
+                    {getOSIcon(item.name)}
+                    <span className={theme === 'dark' ? "text-white" : "text-gray-900"}>{item.name}</span>
+                  </div>
                   <span className="text-gray-500 font-mono">{item.value}</span>
                 </div>
                 <div className="h-1.5 w-full bg-gray-100 dark:bg-white/5 rounded-full overflow-hidden">
                   <motion.div 
                     initial={{ width: 0 }}
-                    animate={{ width: `${(item.value / totalClicks) * 100}%` }}
+                    animate={{ width: `${totalClicksInView > 0 ? (item.value / totalClicksInView) * 100 : 0}%` }}
                     className="h-full bg-blue-500"
                   />
                 </div>
@@ -628,21 +812,30 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
 
         {/* Device Distribution */}
         <div className={cn(
-          "p-8 rounded-3xl border backdrop-blur-sm transition-all relative overflow-hidden",
+          "p-8 rounded-3xl border backdrop-blur-sm transition-all relative overflow-hidden group",
           theme === 'dark' ? "bg-[#0a0a0a] border-white/10" : "bg-white border-gray-200 shadow-sm"
         )}>
-          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-6 text-gray-500">Device Types</h3>
-          <div className="space-y-4">
+          <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity">
+            <Smartphone size={60} />
+          </div>
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-6 text-gray-500 flex items-center gap-2">
+            <Smartphone size={12} />
+            Device Types
+          </h3>
+          <div className="space-y-5">
             {deviceData.map((item) => (
-              <div key={`device-${item.name}`} className="space-y-1.5">
+              <div key={`device-${item.name}`} className="space-y-2">
                 <div className="flex justify-between text-[11px] font-bold">
-                  <span className={theme === 'dark' ? "text-white" : "text-gray-900"}>{item.name}</span>
+                  <div className="flex items-center gap-2">
+                    {getDeviceIcon(item.name)}
+                    <span className={theme === 'dark' ? "text-white" : "text-gray-900"}>{item.name}</span>
+                  </div>
                   <span className="text-gray-500 font-mono">{item.value}</span>
                 </div>
                 <div className="h-1.5 w-full bg-gray-100 dark:bg-white/5 rounded-full overflow-hidden">
                   <motion.div 
                     initial={{ width: 0 }}
-                    animate={{ width: `${(item.value / totalClicks) * 100}%` }}
+                    animate={{ width: `${totalClicksInView > 0 ? (item.value / totalClicksInView) * 100 : 0}%` }}
                     className="h-full bg-emerald-500"
                   />
                 </div>
@@ -668,7 +861,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
             {topUrls.map((url: any, idx: number) => {
               const shortUrl = `${window.location.protocol}//${url.domainId ? url.domainId : window.location.host}/${url.id}`;
               return (
-                <div key={url.id} className={cn(
+                <div key={`top-url-${url.id}-${idx}`} className={cn(
                   "flex items-center justify-between p-5 rounded-2xl border transition-all group relative overflow-hidden",
                   theme === 'dark' ? "bg-white/5 border-white/5 hover:border-white/10" : "bg-gray-50 border-gray-100 hover:border-gray-200"
                 )}>
@@ -722,7 +915,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           </h3>
           <div className="space-y-3">
             {recentClicks.map((click: any, idx: number) => (
-              <div key={click.id ? `click-${click.id}-${idx}` : `click-idx-${idx}`} className={cn(
+              <div key={`recent-click-${click.id || idx}`} className={cn(
                 "flex items-center justify-between p-5 rounded-2xl border transition-all relative overflow-hidden group",
                 theme === 'dark' ? "bg-white/5 border-white/5" : "bg-gray-50 border-gray-100"
               )}>

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Link2, ArrowRight, Loader2, Sparkles, Globe, Twitter, Sun, Moon, X, User, BarChart2, Shield, Zap, Github, Check, MessageSquare, Mail, Lock, QrCode } from 'lucide-react';
+import { Link2, ArrowRight, Loader2, Sparkles, Globe, Twitter, Sun, Moon, X, User, BarChart2, Shield, Zap, Github, Check, MessageSquare, Mail, Lock, QrCode, ChevronDown } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
 import { PasswordStrengthIndicator } from './PasswordStrengthIndicator';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { apiClient } from '../lib/api';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -14,7 +15,7 @@ interface LandingPageProps {
   theme: 'light' | 'dark';
   setTheme: (theme: 'light' | 'dark') => void;
   onLogin: (username: string, password: string) => Promise<void>;
-  onSignup: (username: string, password: string, fullName?: string, company?: string) => Promise<string | void>;
+  onSignup: (username: string, password: string) => Promise<string | void>;
   onResetPassword: (username: string) => Promise<string | void>;
   onResendVerification: (email: string) => Promise<void>;
   isLoggingIn: boolean;
@@ -92,6 +93,59 @@ const SpotifyLogo = () => (
   </div>
 );
 
+const IconRenderer = ({ icon, size = 24 }: { icon: string, size?: number }) => {
+  switch (icon) {
+    case 'Sparkles': return <Sparkles size={size} />;
+    case 'Zap': return <Zap size={size} />;
+    case 'Shield': return <Shield size={size} />;
+    case 'Globe': return <Globe size={size} />;
+    case 'Activity': return <BarChart2 size={size} />;
+    case 'BarChart2': return <BarChart2 size={size} />;
+    case 'Lock': return <Lock size={size} />;
+    case 'Cpu': return <Zap size={size} />;
+    case 'Layers': return <Globe size={size} />;
+    case 'MousePointer2': return <ArrowRight size={size} />;
+    case 'Share2': return <Link2 size={size} />;
+    case 'QrCode': return <QrCode size={size} />;
+    default: return <Sparkles size={size} />;
+  }
+};
+
+const FAQItem: React.FC<{ faq: any, theme: 'light' | 'dark' }> = ({ faq, theme }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <motion.div 
+      initial={false}
+      className={cn(
+        "rounded-2xl border transition-all overflow-hidden",
+        theme === 'dark' ? "bg-[#111111] border-white/10" : "bg-white border-gray-200 shadow-sm"
+      )}
+    >
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full p-6 text-left flex items-center justify-between"
+      >
+        <h3 className="text-lg font-bold">{faq.question}</h3>
+        <motion.div animate={{ rotate: isOpen ? 180 : 0 }}>
+          <ChevronDown size={20} className="text-gray-500" />
+        </motion.div>
+      </button>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="px-6 pb-6"
+          >
+            <p className="text-gray-400 text-sm leading-relaxed">{faq.answer}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
+
 export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLogin, onSignup, onResetPassword, onResendVerification, isLoggingIn }) => {
   const [showLoginForm, setShowLoginForm] = useState(window.location.pathname === '/login');
   const [isSignup, setIsSignup] = useState(false);
@@ -106,6 +160,30 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
   const [mockUrl, setMockUrl] = useState('');
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [_selectedPlan, setSelectedPlan] = useState<string | null>(null);
+
+  const [settings, setSettings] = useState<Record<string, string>>({});
+  const [features, setFeatures] = useState<any[]>([]);
+  const [faqs, setFaqs] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchPublicSettings = async () => {
+      try {
+        const data = await apiClient('/api/public/settings', { showToast: false });
+        setSettings(data.settings || {});
+        
+        const featuresData = data.features || [];
+        const uniqueFeatures = Array.from(new Map(featuresData.map((f: any) => [f.id, f])).values());
+        setFeatures(uniqueFeatures);
+
+        const faqsData = data.faqs || [];
+        const uniqueFaqs = Array.from(new Map(faqsData.map((f: any) => [f.id, f])).values());
+        setFaqs(uniqueFaqs);
+      } catch (error) {
+        console.error('Failed to fetch public settings:', error);
+      }
+    };
+    fetchPublicSettings();
+  }, []);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -139,7 +217,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
         if (!termsAccepted) {
           throw new Error('You must accept the Terms of Service to create an account.');
         }
-        const result = await onSignup(username, password, fullName, company);
+        const result = await onSignup(username, password);
         if (result) {
           setAuthSuccess(result);
           setIsSignup(false);
@@ -197,7 +275,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-indigo-600/20">
               <Link2 size={18} />
             </div>
-            <span className="font-display font-bold text-lg tracking-tight">Cutly</span>
+            <span className="font-display font-bold text-lg tracking-tight">{settings.site_name || "Cutly"}</span>
           </div>
           <div className="flex items-center gap-4">
             <nav className="hidden md:flex items-center gap-6 mr-4">
@@ -244,11 +322,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
               <span>The new standard for link management</span>
             </div>
             <h1 className="text-6xl sm:text-7xl md:text-8xl font-display font-bold tracking-tighter leading-[1.05] mb-6">
-              Shorten links, <br className="hidden md:block" />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">amplify results.</span>
+              {settings.hero_title || "Shorten links,"} <br className="hidden md:block" />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">
+                {settings.hero_subtitle || "amplify results."}
+              </span>
             </h1>
             <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto mb-12 leading-relaxed">
-              The enterprise-grade link management platform for modern teams. Build trust, track performance, and scale your reach with lightning-fast URL shortening.
+              {settings.hero_description || "The enterprise-grade link management platform for modern teams. Build trust, track performance, and scale your reach with lightning-fast URL shortening."}
             </p>
 
             {/* Interactive URL Input */}
@@ -293,116 +373,124 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[320px]">
-            {/* Large Feature */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className={cn(
-                "md:col-span-2 rounded-[32px] p-10 flex flex-col justify-between border relative overflow-hidden group",
-                theme === 'dark' ? "bg-[#111111] border-white/10" : "bg-white border-gray-200 shadow-sm"
-              )}
-            >
-              <div className="relative z-10">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-6">
-                  <BarChart2 size={24} />
-                </div>
-                <h3 className="text-2xl font-bold mb-3">Real-time Analytics</h3>
-                <p className="text-gray-400 max-w-md">Track every click, geographic location, device type, and referring source instantly. Make data-driven decisions.</p>
-              </div>
-              
-              {/* Abstract Chart Graphic */}
-              <div className="absolute right-0 bottom-0 w-2/3 h-2/3 opacity-50 group-hover:opacity-100 transition-opacity duration-500">
-                <div className="absolute bottom-0 right-10 flex items-end gap-3 h-full pb-10">
-                  {[40, 70, 45, 90, 65, 80].map((h, i) => (
-                    <motion.div 
-                      key={i}
-                      initial={{ height: 0 }}
-                      whileInView={{ height: `${h}%` }}
-                      transition={{ duration: 1, delay: i * 0.1 }}
-                      className="w-12 bg-gradient-to-t from-indigo-600/20 to-indigo-500/80 rounded-t-xl"
-                    />
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Small Feature 1 */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className={cn(
-                "rounded-[32px] p-10 flex flex-col justify-between border relative overflow-hidden",
-                theme === 'dark' ? "bg-[#111111] border-white/10" : "bg-white border-gray-200 shadow-sm"
-              )}
-            >
-              <div>
-                <div className="w-12 h-12 rounded-2xl bg-violet-500/10 flex items-center justify-center text-violet-400 mb-6">
-                  <Globe size={24} />
-                </div>
-                <h3 className="text-2xl font-bold mb-3">Custom Domains</h3>
-                <p className="text-gray-400">Use your own brand's domain for a professional look and higher click-through rates.</p>
-              </div>
-            </motion.div>
-
-            {/* Small Feature 2 */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
-              className={cn(
-                "rounded-[32px] p-10 flex flex-col justify-between border relative overflow-hidden",
-                theme === 'dark' ? "bg-[#111111] border-white/10" : "bg-white border-gray-200 shadow-sm"
-              )}
-            >
-              <div>
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 mb-6">
-                  <QrCode size={24} />
-                </div>
-                <h3 className="text-2xl font-bold mb-3">QR Codes</h3>
-                <p className="text-gray-400">Generate customizable QR codes for your links instantly. Perfect for print media.</p>
-              </div>
-            </motion.div>
-
-            {/* Medium Feature */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.3 }}
-              className={cn(
-                "md:col-span-2 rounded-[32px] p-10 flex flex-col justify-between border relative overflow-hidden",
-                theme === 'dark' ? "bg-[#111111] border-white/10" : "bg-white border-gray-200 shadow-sm"
-              )}
-            >
-              <div className="flex flex-col md:flex-row gap-10 items-center h-full">
-                <div className="flex-1">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-400 mb-6">
-                    <Shield size={24} />
+            {features.length > 0 ? (
+              features.map((feature, index) => (
+                <motion.div 
+                  key={feature.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                  className={cn(
+                    "rounded-[32px] p-10 flex flex-col justify-between border relative overflow-hidden group",
+                    index % 3 === 0 ? "md:col-span-2" : "",
+                    theme === 'dark' ? "bg-[#111111] border-white/10" : "bg-white border-gray-200 shadow-sm"
+                  )}
+                >
+                  <div className="relative z-10">
+                    <div className={cn(
+                      "w-12 h-12 rounded-2xl flex items-center justify-center mb-6",
+                      index % 3 === 0 ? "bg-indigo-500/10 text-indigo-400" : 
+                      index % 3 === 1 ? "bg-violet-500/10 text-violet-400" :
+                      "bg-emerald-500/10 text-emerald-400"
+                    )}>
+                      <IconRenderer icon={feature.icon} />
+                    </div>
+                    <h3 className="text-2xl font-bold mb-3">{feature.title}</h3>
+                    <p className="text-gray-400 max-w-md">{feature.description}</p>
                   </div>
-                  <h3 className="text-2xl font-bold mb-3">Enterprise Security</h3>
-                  <p className="text-gray-400">Your data is protected with industry-leading security protocols. Password-protect sensitive links.</p>
-                </div>
-                <div className="flex-1 w-full flex items-center justify-center">
-                   <div className={cn(
-                     "w-full max-w-sm p-6 rounded-2xl border flex items-center gap-4",
-                     theme === 'dark' ? "bg-[#161616] border-white/10" : "bg-gray-50 border-gray-200"
-                   )}>
-                     <Lock className="text-gray-500" />
-                     <div className="flex-1">
-                       <div className="h-2 w-24 bg-gray-700 rounded-full mb-2"></div>
-                       <div className="h-2 w-32 bg-gray-700 rounded-full"></div>
-                     </div>
-                     <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center">
-                       <Check size={14} className="text-indigo-400" />
-                     </div>
-                   </div>
-                </div>
-              </div>
-            </motion.div>
+                  
+                  {index % 3 === 0 && (
+                    <div className="absolute right-0 bottom-0 w-2/3 h-2/3 opacity-50 group-hover:opacity-100 transition-opacity duration-500">
+                      <div className="absolute bottom-0 right-10 flex items-end gap-3 h-full pb-10">
+                        {[40, 70, 45, 90, 65, 80].map((h, i) => (
+                          <motion.div 
+                            key={i}
+                            initial={{ height: 0 }}
+                            whileInView={{ height: `${h}%` }}
+                            transition={{ duration: 1, delay: i * 0.1 }}
+                            className="w-12 bg-gradient-to-t from-indigo-600/20 to-indigo-500/80 rounded-t-xl"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              ))
+            ) : (
+              <>
+                {/* Fallback to original hardcoded features if none are defined */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  className={cn(
+                    "md:col-span-2 rounded-[32px] p-10 flex flex-col justify-between border relative overflow-hidden group",
+                    theme === 'dark' ? "bg-[#111111] border-white/10" : "bg-white border-gray-200 shadow-sm"
+                  )}
+                >
+                  <div className="relative z-10">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-6">
+                      <BarChart2 size={24} />
+                    </div>
+                    <h3 className="text-2xl font-bold mb-3">Real-time Analytics</h3>
+                    <p className="text-gray-400 max-w-md">Track every click, geographic location, device type, and referring source instantly. Make data-driven decisions.</p>
+                  </div>
+                  
+                  <div className="absolute right-0 bottom-0 w-2/3 h-2/3 opacity-50 group-hover:opacity-100 transition-opacity duration-500">
+                    <div className="absolute bottom-0 right-10 flex items-end gap-3 h-full pb-10">
+                      {[40, 70, 45, 90, 65, 80].map((h, i) => (
+                        <motion.div 
+                          key={i}
+                          initial={{ height: 0 }}
+                          whileInView={{ height: `${h}%` }}
+                          transition={{ duration: 1, delay: i * 0.1 }}
+                          className="w-12 bg-gradient-to-t from-indigo-600/20 to-indigo-500/80 rounded-t-xl"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.1 }}
+                  className={cn(
+                    "rounded-[32px] p-10 flex flex-col justify-between border relative overflow-hidden",
+                    theme === 'dark' ? "bg-[#111111] border-white/10" : "bg-white border-gray-200 shadow-sm"
+                  )}
+                >
+                  <div>
+                    <div className="w-12 h-12 rounded-2xl bg-violet-500/10 flex items-center justify-center text-violet-400 mb-6">
+                      <Globe size={24} />
+                    </div>
+                    <h3 className="text-2xl font-bold mb-3">Custom Domains</h3>
+                    <p className="text-gray-400">Use your own brand's domain for a professional look and higher click-through rates.</p>
+                  </div>
+                </motion.div>
+
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.2 }}
+                  className={cn(
+                    "rounded-[32px] p-10 flex flex-col justify-between border relative overflow-hidden",
+                    theme === 'dark' ? "bg-[#111111] border-white/10" : "bg-white border-gray-200 shadow-sm"
+                  )}
+                >
+                  <div>
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 mb-6">
+                      <QrCode size={24} />
+                    </div>
+                    <h3 className="text-2xl font-bold mb-3">QR Codes</h3>
+                    <p className="text-gray-400">Generate customizable QR codes for your links instantly. Perfect for print media.</p>
+                  </div>
+                </motion.div>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -476,6 +564,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
+              whileHover={{ scale: 1.02 }}
+              transition={{ duration: 0.2 }}
               className={cn(
                 "p-10 rounded-[40px] border transition-all flex flex-col h-full",
                 theme === 'dark' ? "bg-[#0a0a0a] border-white/5 hover:border-white/10" : "bg-white border-gray-100 shadow-sm hover:shadow-md"
@@ -535,16 +625,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
+              whileHover={{ scale: 1.02 }}
+              transition={{ duration: 0.2 }}
               className={cn(
                 "p-10 rounded-[40px] border-2 relative transition-all flex flex-col h-full transform md:-translate-y-4",
                 theme === 'dark' 
-                  ? "bg-[#111] border-indigo-500 shadow-[0_0_40px_rgba(99,102,241,0.15)]" 
-                  : "bg-white border-indigo-500 shadow-2xl shadow-indigo-500/10"
+                  ? "bg-[#111] border-indigo-500 shadow-[0_0_60px_rgba(99,102,241,0.3)]" 
+                  : "bg-white border-indigo-500 shadow-2xl shadow-indigo-500/20"
               )}
             >
               <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                <span className="bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-[10px] font-bold uppercase tracking-widest py-1.5 px-4 rounded-full shadow-lg shadow-indigo-500/20">
+                <span className="bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-[10px] font-bold uppercase tracking-widest py-1.5 px-4 rounded-full shadow-lg shadow-indigo-500/40 ring-2 ring-white/20">
                   Most Popular
                 </span>
               </div>
@@ -587,7 +678,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
               </div>
               <button 
                 onClick={() => handlePlanClick('pro')}
-                className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl transition-all shadow-xl shadow-indigo-600/20 mt-auto"
+                className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl transition-all shadow-xl shadow-indigo-600/30 mt-auto"
               >
                 Upgrade to Pro
               </button>
@@ -598,7 +689,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
+              whileHover={{ scale: 1.02 }}
+              transition={{ duration: 0.2 }}
               className={cn(
                 "p-10 rounded-[40px] border transition-all flex flex-col h-full",
                 theme === 'dark' ? "bg-[#0a0a0a] border-white/5 hover:border-white/10" : "bg-white border-gray-100 shadow-sm hover:shadow-md"
@@ -702,6 +794,28 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
         </div>
       </section>
 
+      {/* FAQ Section */}
+      <section className="py-32 px-6 relative z-10">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-display font-bold mb-4 tracking-tight">Frequently Asked Questions</h2>
+            <p className="text-gray-500">Everything you need to know about Cutly.</p>
+          </div>
+
+          <div className="space-y-4">
+            {faqs.filter(f => !f.hidden).length > 0 ? (
+              faqs.filter(f => !f.hidden).map((faq) => (
+                <FAQItem key={faq.id} faq={faq} theme={theme} />
+              ))
+            ) : (
+              <div className="text-center py-10 text-gray-500 italic">
+                No FAQs available at the moment.
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className={cn(
         "py-20 px-6 border-t mt-20",
@@ -714,7 +828,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                 <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-indigo-600/20">
                   <Link2 size={18} />
                 </div>
-                <span className="font-display font-bold text-xl tracking-tight">Cutly</span>
+                <span className="font-display font-bold text-xl tracking-tight">{settings.site_name || "Cutly"}</span>
               </div>
               <p className="text-gray-500 dark:text-gray-400 max-w-xs mb-8 leading-relaxed">
                 The enterprise-grade link management platform for modern teams. Build trust, track performance, and scale your reach.
@@ -775,7 +889,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
 
           <div className="pt-8 border-t border-gray-100 dark:border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-sm text-gray-500">
-              © 2026 Cutly. All rights reserved. Built with precision.
+              © {new Date().getFullYear()} {settings.site_name || "Cutly"}. All rights reserved. Built with precision.
             </p>
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">

@@ -18,6 +18,7 @@ interface HistoryListProps {
   onClear: () => void;
   openShareModal: (url: string) => void;
   openQrModal: (url: string) => void;
+  onItemClick: (item: HistoryItem) => void;
 }
 
 export const HistoryList: React.FC<HistoryListProps> = ({ 
@@ -27,7 +28,8 @@ export const HistoryList: React.FC<HistoryListProps> = ({
   onBulkDelete,
   onClear,
   openShareModal,
-  openQrModal
+  openQrModal,
+  onItemClick
 }) => {
   const [historySearch, setHistorySearch] = useState('');
   const [filterExpiresAt, setFilterExpiresAt] = useState('');
@@ -42,6 +44,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
 
   const filteredHistory = history
     .filter(item => 
+      item && item.id && // Ensure item and ID exist
       ((item.originalUrl || '').toLowerCase().includes(historySearch.toLowerCase()) ||
       (item.shortUrl || '').toLowerCase().includes(historySearch.toLowerCase())) &&
       (filterExpiresAt ? item.expiresAt?.startsWith(filterExpiresAt) : true)
@@ -221,45 +224,48 @@ export const HistoryList: React.FC<HistoryListProps> = ({
           </div>
         )}
         {uniqueFilteredHistory.map((item) => (
-          <motion.div
-            layout
-            key={item.id}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            className={cn(
-              "group relative p-2 border rounded-lg transition-all duration-300",
-              theme === 'dark' ? "bg-black/20 border-white/5 hover:border-white/10" : "bg-gray-50 border-gray-100 hover:border-emerald-200",
-              expandedBulkId === item.id && (theme === 'dark' ? "bg-black/40 border-emerald-500/30" : "bg-emerald-50/30 border-emerald-200")
-            )}
-          >
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1 min-w-0 flex items-center gap-3">
-                <input 
-                  type="checkbox" 
-                  checked={selectedItems.includes(item.id)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedItems(prev => [...prev, item.id]);
-                    } else {
-                      setSelectedItems(prev => prev.filter(id => id !== item.id));
-                    }
-                  }}
-                  className="rounded border-gray-300 text-brand focus:ring-brand cursor-pointer shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-1">
-                  <a 
-                    href={item.shortUrl} 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className={cn(
-                      "text-lg font-display font-bold truncate transition-colors hover:text-brand",
-                      theme === 'dark' ? "text-white" : "text-gray-900"
-                    )}
-                  >
-                    {item.shortUrl?.replace ? item.shortUrl.replace(/^https?:\/\//, '') : item.shortUrl}
-                  </a>
+            <motion.div 
+              layout
+              key={`history-${item.id}`}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              onClick={() => onItemClick(item)}
+              className={cn(
+                "group relative p-2 border rounded-lg transition-all duration-300 cursor-pointer",
+                theme === 'dark' ? "bg-black/20 border-white/5 hover:border-white/10" : "bg-gray-50 border-gray-100 hover:border-emerald-200",
+                expandedBulkId === item.id && (theme === 'dark' ? "bg-black/40 border-emerald-500/30" : "bg-emerald-50/30 border-emerald-200")
+              )}
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1 min-w-0 flex items-center gap-3">
+                  <input 
+                    type="checkbox" 
+                    checked={selectedItems.includes(item.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedItems(prev => [...prev, item.id]);
+                      } else {
+                        setSelectedItems(prev => prev.filter(id => id !== item.id));
+                      }
+                    }}
+                    className="rounded border-gray-300 text-brand focus:ring-brand cursor-pointer shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-1">
+                    <a 
+                      href={item.shortUrl} 
+                      target="_blank" 
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className={cn(
+                        "text-lg font-display font-bold truncate transition-colors hover:text-brand",
+                        theme === 'dark' ? "text-white" : "text-gray-900"
+                      )}
+                    >
+                      {item.shortUrl?.replace ? item.shortUrl.replace(/^https?:\/\//, '') : item.shortUrl}
+                    </a>
                   <div className="flex items-center gap-1.5">
                     {item.isBulk && (
                       <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand/10 border border-brand/20">
@@ -302,7 +308,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
               </div>
               </div>
 
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center gap-1 p-1 rounded-xl bg-gray-100/50 dark:bg-white/5 border border-gray-200/50 dark:border-white/5 opacity-0 group-hover:opacity-100 transition-all duration-300">
                   {confirmDeleteHistoryId === item.id ? (
                     <div className="flex items-center gap-1 px-1 animate-in fade-in slide-in-from-right-2">
@@ -490,7 +496,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                           : (bUrl?.split ? bUrl.split('/').pop() : '') || '';
                         
                         return (
-                          <div key={`${item.id}-${idx}`} className="flex items-center justify-between group/bulk-item py-0.5">
+                          <div key={`bulk-${item.id}-${idx}`} className="flex items-center justify-between group/bulk-item py-0.5">
                             <span className="text-[10px] font-mono text-gray-500 truncate flex-1">
                               {displayValue}
                             </span>
@@ -536,7 +542,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                 </motion.div>
               )}
             </AnimatePresence>
-          </motion.div>
+            </motion.div>
         ))}
       </div>
     </motion.div>

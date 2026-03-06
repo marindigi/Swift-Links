@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Globe, X, Plus, Search, Trash2 } from 'lucide-react';
+import { Globe, X, Plus, Search, Trash2, CheckCircle, AlertCircle, Clock, RefreshCw, Copy } from 'lucide-react';
 import { Button } from './Button';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -178,11 +178,14 @@ export const DomainManager: React.FC<DomainManagerProps> = ({
                     )}>{domain.name}</span>
                     {domain.status && (
                       <span className={cn(
-                        "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full",
-                        domain.status === 'verified' && "bg-emerald-500/10 text-emerald-500",
-                        domain.status === 'pending' && "bg-amber-500/10 text-amber-500",
-                        domain.status === 'failed' && "bg-red-500/10 text-red-500"
+                        "text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-lg flex items-center gap-1.5",
+                        domain.status === 'verified' && (theme === 'dark' ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-600"),
+                        domain.status === 'pending' && (theme === 'dark' ? "bg-amber-500/10 text-amber-400" : "bg-amber-50 text-amber-600"),
+                        domain.status === 'failed' && (theme === 'dark' ? "bg-red-500/10 text-red-400" : "bg-red-50 text-red-600")
                       )}>
+                        {domain.status === 'verified' && <CheckCircle size={12} />}
+                        {domain.status === 'pending' && <Clock size={12} />}
+                        {domain.status === 'failed' && <AlertCircle size={12} />}
                         {domain.status}
                       </span>
                     )}
@@ -241,13 +244,15 @@ export const DomainManager: React.FC<DomainManagerProps> = ({
                          <div className="flex items-center gap-2">
                            <span className="truncate max-w-[150px]">{domain.verificationToken || `${domain.id}-verification-string`}</span>
                            <button 
+                             type="button"
                              onClick={() => {
                                navigator.clipboard.writeText(domain.verificationToken || `${domain.id}-verification-string`);
                                toast.success('Copied to clipboard!');
                              }}
-                             className="text-[10px] bg-white/10 hover:bg-white/20 px-2 py-1 rounded"
+                             className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-white"
+                             title="Copy to clipboard"
                            >
-                             Copy
+                             <Copy size={12} />
                            </button>
                          </div>
                       </div>
@@ -260,7 +265,8 @@ export const DomainManager: React.FC<DomainManagerProps> = ({
                       isLoading={verifyingId === domain.id}
                       className="mt-3 w-full"
                     >
-                      Verify Domain
+                      <RefreshCw size={14} className={cn("mr-2", verifyingId === domain.id && "animate-spin")} />
+                      <span>Verify Domain Now</span>
                     </Button>
                   </div>
                 )}

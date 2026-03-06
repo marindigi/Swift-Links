@@ -20,6 +20,7 @@ export interface HistoryItem {
 export interface User {
   id: string;
   email: string | null;
+  emailVerified?: boolean;
   role?: string;
   plan?: string;
   pendingPlan?: string | null;
@@ -28,6 +29,7 @@ export interface User {
   name?: string | null;
   avatar_url?: string | null;
   message?: string | null;
+  createdAt?: string;
   usage?: {
     linksThisMonth: number;
     domains: number;
@@ -47,9 +49,19 @@ export interface Task {
   description?: string;
   completed: boolean;
   dueDate?: string | null;
+  notified?: boolean;
   createdAt: string;
   userId: string;
-  notified?: boolean;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: string;
+  read: boolean;
+  createdAt: string;
 }
 
 export interface LandingFeature {
@@ -65,6 +77,7 @@ export interface LandingFaq {
   question: string;
   answer: string;
   displayOrder: number;
+  hidden?: boolean;
 }
 
 export interface PublicSettings {

@@ -1,8 +1,10 @@
-import React from 'react';
-import { Link2, BarChart2, Sparkles, Globe, Key, Shield, User as UserIcon, LogOut, Sun, Moon, MessageSquare } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Link2, BarChart2, Globe, Key, Shield, User as UserIcon, LogOut, Sun, Moon, MessageSquare } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { User } from '../types';
 import { ExpirationBanner } from './ExpirationBanner';
+import { getSignedUrl } from '../lib/storage';
+import { NotificationCenter } from './NotificationCenter';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -25,6 +27,21 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   onLogout,
   onFetchAnalytics
 }) => {
+  const [signedAvatarUrl, setSignedAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user?.avatar_url) {
+      loadSignedAvatar(user.avatar_url);
+    } else {
+      setSignedAvatarUrl(null);
+    }
+  }, [user?.avatar_url]);
+
+  const loadSignedAvatar = async (path: string) => {
+    const url = await getSignedUrl(path);
+    setSignedAvatarUrl(url);
+  };
+
   return (
     <div className={cn(
       "min-h-screen transition-colors duration-500 selection:bg-brand/30 font-sans overflow-x-hidden relative",
@@ -58,7 +75,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           <button
             onClick={() => setView('home')}
             className={cn(
-              "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
+              "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:scale-[1.02]",
               view === 'home' 
                 ? "bg-brand text-white shadow-lg shadow-brand/20" 
                 : "text-gray-400 hover:text-gray-100 hover:bg-white/5"
@@ -73,7 +90,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               onFetchAnalytics();
             }}
             className={cn(
-              "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
+              "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:scale-[1.02]",
               view === 'analytics' 
                 ? "bg-brand text-white shadow-lg shadow-brand/20" 
                 : "text-gray-400 hover:text-gray-100 hover:bg-white/5"
@@ -83,21 +100,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             <span>Analytics</span>
           </button>
           <button
-            onClick={() => setView('tasks')}
-            className={cn(
-              "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
-              view === 'tasks' 
-                ? "bg-brand text-white shadow-lg shadow-brand/20" 
-                : "text-gray-400 hover:text-gray-100 hover:bg-white/5"
-            )}
-          >
-            <Sparkles size={18} />
-            <span>Tasks</span>
-          </button>
-          <button
             onClick={() => setView('support')}
             className={cn(
-              "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
+              "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:scale-[1.02]",
               view === 'support' 
                 ? "bg-brand text-white shadow-lg shadow-brand/20" 
                 : "text-gray-400 hover:text-gray-100 hover:bg-white/5"
@@ -112,7 +117,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           <button
             onClick={() => setView('domains')}
             className={cn(
-              "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
+              "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:scale-[1.02]",
               view === 'domains' 
                 ? "bg-brand text-white shadow-lg shadow-brand/20" 
                 : "text-gray-400 hover:text-gray-100 hover:bg-white/5"
@@ -124,7 +129,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           <button
             onClick={() => setView('api-keys')}
             className={cn(
-              "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
+              "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:scale-[1.02]",
               view === 'api-keys' 
                 ? "bg-brand text-white shadow-lg shadow-brand/20" 
                 : "text-gray-400 hover:text-gray-100 hover:bg-white/5"
@@ -137,7 +142,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             <button
               onClick={() => setView('admin')}
               className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
+                "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:scale-[1.02]",
                 view === 'admin' 
                   ? "bg-brand text-white shadow-lg shadow-brand/20" 
                   : "text-gray-400 hover:text-gray-100 hover:bg-white/5"
@@ -199,16 +204,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         >
           <BarChart2 size={20} />
           <span className="text-[10px] font-bold uppercase tracking-wider">Stats</span>
-        </button>
-        <button
-          onClick={() => setView('tasks')}
-          className={cn(
-            "flex flex-col items-center gap-1 min-w-[60px] px-2 py-1 rounded-xl transition-all shrink-0",
-            view === 'tasks' ? "text-brand" : "text-gray-500"
-          )}
-        >
-          <Sparkles size={20} />
-          <span className="text-[10px] font-bold uppercase tracking-wider">Tasks</span>
         </button>
         <button
           onClick={() => setView('domains')}
@@ -287,6 +282,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             </h2>
           </div>
           <div className="flex items-center gap-4">
+            <NotificationCenter theme={theme} />
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               className={cn(
@@ -307,10 +303,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 "w-8 h-8 rounded-lg overflow-hidden border",
                 theme === 'dark' ? "border-white/10" : "border-gray-200"
               )}>
-                {user?.avatar_url ? (
+                {signedAvatarUrl ? (
                   <img 
-                    src={user.avatar_url} 
-                    alt={user.name || 'User'} 
+                    src={signedAvatarUrl} 
+                    alt={user?.name || 'User'} 
                     className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"
                   />
@@ -330,19 +326,24 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
       {/* Main Content */}
       <main className={cn(
-        "relative z-10 pb-24 lg:pb-12 px-6 max-w-7xl mx-auto min-h-screen flex flex-col transition-all duration-500 lg:ml-64",
+        "relative z-10 pb-24 lg:pb-12 px-8 max-w-7xl mx-auto min-h-screen flex flex-col transition-all duration-500 lg:ml-64",
         user && user.expiresAt && user.plan !== 'free' && 
         Math.ceil((new Date(user.expiresAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) <= 7 && 
         Math.ceil((new Date(user.expiresAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) > 0 
           ? "pt-40 lg:pt-32" 
           : "pt-24 lg:pt-24"
       )}>
-        <ExpirationBanner 
-          expiresAt={user?.expiresAt || ''} 
-          onRenew={() => setView('profile')} 
-          theme={theme} 
-        />
-        {children}
+        <div className={cn(
+          "flex-1 rounded-3xl p-6 md:p-8 transition-all duration-500",
+          theme === 'dark' ? "bg-[#0a0a0a]/40 border border-white/5" : "bg-white/40 border border-gray-200/50 shadow-sm"
+        )}>
+          <ExpirationBanner 
+            expiresAt={user?.expiresAt || ''} 
+            onRenew={() => setView('profile')} 
+            theme={theme} 
+          />
+          {children}
+        </div>
       </main>
     </div>
   );

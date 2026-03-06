@@ -5,7 +5,6 @@ import { nanoid } from "nanoid";
 import Database from "better-sqlite3";
 import session from "express-session";
 import bcrypt from "bcryptjs";
-import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import nodemailer from 'nodemailer';
 import cron from 'node-cron';
@@ -14,12 +13,31 @@ import dns from 'node:dns';
 import { promisify } from 'node:util';
 import helmet from "helmet";
 import { rateLimit as expressRateLimit } from "express-rate-limit";
+import admin from "firebase-admin";
+
+// Initialize Firebase Admin
+if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON && process.env.FIREBASE_SERVICE_ACCOUNT_JSON.trim().startsWith('{')) {
+  try {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+    console.log("Firebase Admin initialized successfully with Service Account");
+  } catch (error) {
+    console.error("Failed to initialize Firebase Admin with Service Account JSON:", error);
+  }
+} else if (process.env.VITE_FIREBASE_PROJECT_ID) {
+  try {
+    admin.initializeApp({
+      projectId: process.env.VITE_FIREBASE_PROJECT_ID
+    });
+    console.log("Firebase Admin initialized with Project ID:", process.env.VITE_FIREBASE_PROJECT_ID);
+  } catch (error) {
+    console.error("Failed to initialize Firebase Admin with Project ID:", error);
+  }
+}
 
 const resolveTxt = promisify(dns.resolveTxt);
-
-const SUPABASE_URL = "https://lqrcrqcgzticbzazxorc.supabase.co";
-const SUPABASE_PUBLIC_KEY = "sb_publishable_lhizgd0mwyTZ8XYUpJO6sg_YkRomYze";
-const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLIC_KEY);
 
 // Initialize Stripe lazily
 let stripe: Stripe | null = null;
@@ -115,7 +133,7 @@ try {
   db.exec("ALTER TABLE clicks ADD COLUMN city TEXT DEFAULT 'Unknown'");
 } catch (e) {}
 try {
-  db.exec("ALTER TABLE clicks ADD COLUMN device TEXT DEFAULT 'Unknown'");
+  db.exec("ALTER TABLE clicks ADD COLUMN device TEXT DEFAULT 'desktop'");
 } catch (e) {}
 try {
   db.exec("ALTER TABLE clicks ADD COLUMN browser TEXT DEFAULT 'Unknown'");
@@ -167,10 +185,32 @@ db.exec(`
     description TEXT,
     completed BOOLEAN DEFAULT 0,
     dueDate DATETIME,
+    notified BOOLEAN DEFAULT 0,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(userId) REFERENCES users(id)
   );
 `);
+
+// Create notifications table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS notifications (
+    id TEXT PRIMARY KEY,
+    userId TEXT,
+    title TEXT,
+    message TEXT,
+    type TEXT,
+    read BOOLEAN DEFAULT 0,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(userId) REFERENCES users(id)
+  );
+`);
+
+// Add notified column to tasks if it doesn't exist
+try {
+  db.exec("ALTER TABLE tasks ADD COLUMN notified BOOLEAN DEFAULT 0");
+} catch (e) {
+  // Column already exists or table doesn't exist yet
+}
 
 // Seed admin user
 const adminPassword = process.env.ADMIN_PASSWORD || "8899";
@@ -309,6 +349,10 @@ db.exec(`
     userAgent TEXT,
     referer TEXT,
     country TEXT DEFAULT 'Unknown',
+    city TEXT DEFAULT 'Unknown',
+    device TEXT DEFAULT 'desktop',
+    browser TEXT DEFAULT 'Unknown',
+    os TEXT DEFAULT 'Unknown',
     FOREIGN KEY(urlId) REFERENCES urls(id)
   );
 
@@ -409,10 +453,11 @@ async function startServer() {
   app.use(session({
     secret: process.env.SESSION_SECRET || "cutly-secret-dev-only",
     resave: false,
-    saveUninitialized: true,
+    saveUninitialized: false, // Better for production
     cookie: {
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      secure: true, // Required for SameSite=None in iframe
+      sameSite: 'none', // Required for cross-origin iframe
+      httpOnly: true, // Security best practice
       maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     }
   }));
@@ -422,57 +467,68 @@ async function startServer() {
     const authHeader = req.headers['authorization'];
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
-      const { data: { user }, error: _error } = await supabase.auth.getUser(token);
-      if (user) {
-        // Sync user to local DB
-        let existingUser = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id) as any;
-        
-        if (!existingUser && user.email) {
-          // Try to find by email if not found by ID
-          existingUser = db.prepare("SELECT * FROM users WHERE email = ?").get(user.email) as any;
-          if (existingUser) {
-            // Update ID to Supabase ID and also update foreign keys
-            db.prepare("UPDATE users SET id = ? WHERE email = ?").run(user.id, user.email);
-            db.prepare("UPDATE urls SET userId = ? WHERE userId = ?").run(user.id, existingUser.id);
-            db.prepare("UPDATE domains SET userId = ? WHERE userId = ?").run(user.id, existingUser.id);
-            db.prepare("UPDATE apiKeys SET userId = ? WHERE userId = ?").run(user.id, existingUser.id);
-            db.prepare("UPDATE tasks SET userId = ? WHERE userId = ?").run(user.id, existingUser.id);
-            // Refresh existingUser with new ID
-            existingUser = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id) as any;
+      try {
+        const decodedToken = await admin.auth().verifyIdToken(token);
+        const user = {
+          id: decodedToken.uid,
+          email: decodedToken.email,
+          name: decodedToken.name || null,
+          picture: decodedToken.picture || null
+        };
+
+        if (user) {
+          // Sync user to local DB
+          let existingUser = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id) as any;
+          
+          if (!existingUser && user.email) {
+            // Try to find by email if not found by ID
+            existingUser = db.prepare("SELECT * FROM users WHERE email = ?").get(user.email) as any;
+            if (existingUser) {
+              // Update ID to Firebase ID and also update foreign keys
+              db.prepare("UPDATE users SET id = ? WHERE email = ?").run(user.id, user.email);
+              db.prepare("UPDATE urls SET userId = ? WHERE userId = ?").run(user.id, existingUser.id);
+              db.prepare("UPDATE domains SET userId = ? WHERE userId = ?").run(user.id, existingUser.id);
+              db.prepare("UPDATE apiKeys SET userId = ? WHERE userId = ?").run(user.id, existingUser.id);
+              db.prepare("UPDATE tasks SET userId = ? WHERE userId = ?").run(user.id, existingUser.id);
+              // Refresh existingUser with new ID
+              existingUser = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id) as any;
+            }
           }
+
+          let role = existingUser?.role || 'user';
+          let plan = existingUser?.plan || 'free';
+          let status = existingUser?.status || 'active';
+          let expiresAt = existingUser?.expiresAt;
+
+          // Check for plan expiration
+          if (expiresAt && new Date(expiresAt) < new Date() && plan !== 'free') {
+            console.log(`[Auth] Plan expired for user ${user.id}. Downgrading to free.`);
+            db.prepare("UPDATE users SET plan = 'free', expiresAt = NULL WHERE id = ?").run(user.id);
+            plan = 'free';
+            expiresAt = null;
+          }
+
+          // Use existing name/avatar if available locally, otherwise try to get from metadata
+          let name = existingUser?.name || user.name || null;
+          let avatar_url = existingUser?.avatar_url || user.picture || null;
+
+          if (user.email === adminEmail || user.email === 'mcs.marinroeun@gmail.com') {
+            role = 'admin';
+            plan = 'enterprise';
+            status = 'active';
+          }
+
+          if (!existingUser) {
+            db.prepare("INSERT INTO users (id, email, role, plan, status, name, avatar_url) VALUES (?, ?, ?, ?, ?, ?, ?)").run(user.id, user.email, role, plan, status, name, avatar_url);
+          } else {
+            db.prepare("UPDATE users SET email = ?, role = ?, plan = ?, status = ?, name = COALESCE(name, ?), avatar_url = COALESCE(avatar_url, ?) WHERE id = ?").run(user.email, role, plan, status, name, avatar_url, user.id);
+          }
+          
+          req.user = { uid: user.id, email: user.email, role, plan, status, expiresAt, name, avatar_url, isAnonymous: false };
+          return next();
         }
-
-        let role = existingUser?.role || 'user';
-        let plan = existingUser?.plan || 'free';
-        let status = existingUser?.status || 'active';
-        let expiresAt = existingUser?.expiresAt;
-
-        // Check for plan expiration
-        if (expiresAt && new Date(expiresAt) < new Date() && plan !== 'free') {
-          console.log(`[Auth] Plan expired for user ${user.id}. Downgrading to free.`);
-          db.prepare("UPDATE users SET plan = 'free', expiresAt = NULL WHERE id = ?").run(user.id);
-          plan = 'free';
-          expiresAt = null;
-        }
-
-        // Use existing name/avatar if available locally, otherwise try to get from metadata (if we had it)
-        let name = existingUser?.name || user.user_metadata?.full_name || user.user_metadata?.name || null;
-        let avatar_url = existingUser?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
-
-        if (user.email === adminEmail || user.email === 'mcs.marinroeun@gmail.com') {
-          role = 'admin';
-          plan = 'enterprise';
-          status = 'active';
-        }
-
-        if (!existingUser) {
-          db.prepare("INSERT INTO users (id, email, role, plan, status, name, avatar_url) VALUES (?, ?, ?, ?, ?, ?, ?)").run(user.id, user.email, role, plan, status, name, avatar_url);
-        } else {
-          db.prepare("UPDATE users SET email = ?, role = ?, plan = ?, status = ?, name = COALESCE(name, ?), avatar_url = COALESCE(avatar_url, ?) WHERE id = ?").run(user.email, role, plan, status, name, avatar_url, user.id);
-        }
-        
-        req.user = { uid: user.id, email: user.email, role, plan, status, expiresAt, name, avatar_url, isAnonymous: false };
-        return next();
+      } catch (error) {
+        console.error("Firebase token verification failed:", error);
       }
     }
 
@@ -551,7 +607,7 @@ async function startServer() {
     // If accessing protected routes (like analytics or keys) and is anonymous, return 401
     const protectedRoutes = ['/api/keys', '/api/analytics', '/api/admin'];
     if (req.user.isAnonymous && protectedRoutes.some(route => req.path.startsWith(route))) {
-      // Check if they have a valid Supabase token but it wasn't caught earlier
+      // Check if they have a valid token but it wasn't caught earlier
       const authHeader = req.headers['authorization'];
       if (authHeader && authHeader.startsWith('Bearer ')) {
         // If they have a token, let the route handler deal with it or wait for the token to be verified
@@ -848,7 +904,8 @@ async function startServer() {
       
       db.prepare("UPDATE users SET resetToken = ?, resetTokenExpiresAt = ? WHERE id = ?").run(token, expiresAt, user.id);
       
-      const resetUrl = `${req.protocol}://${req.get('host')}/update-password?token=${token}`;
+      const baseUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+      const resetUrl = `${baseUrl}/update-password?token=${token}`;
       const html = `
         <h2>Password Reset</h2>
         <p>You requested a password reset for your Cutly account.</p>
@@ -1229,6 +1286,41 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  app.patch("/api/urls/:id", authenticate, (req: any, res) => {
+    const { originalUrl, expiresAt } = req.body;
+    const updates = [];
+    const params = [];
+
+    if (originalUrl) {
+      try {
+        new URL(originalUrl);
+        updates.push("originalUrl = ?");
+        params.push(originalUrl);
+      } catch {
+        return res.status(400).json({ error: "Invalid URL format" });
+      }
+    }
+
+    if (expiresAt !== undefined) {
+      updates.push("expiresAt = ?");
+      params.push(expiresAt);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: "No fields to update" });
+    }
+
+    params.push(req.params.id, req.user.uid);
+    const result = db.prepare(`UPDATE urls SET ${updates.join(", ")} WHERE id = ? AND userId = ?`).run(...params);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: "URL not found" });
+    }
+
+    const updatedUrl = db.prepare("SELECT * FROM urls WHERE id = ?").get(req.params.id);
+    res.json(updatedUrl);
+  });
+
   // Domain Management APIs
   app.get("/api/domains", authenticate, (req: any, res) => {
     const domains = db.prepare("SELECT * FROM domains WHERE userId = ? ORDER BY createdAt DESC").all(req.user.uid);
@@ -1536,6 +1628,41 @@ const checkDomainLimit = (userId: string) => {
   });
 
   // Tasks API
+  app.get("/api/notifications", authenticate, (req: any, res) => {
+    try {
+      const notifications = db.prepare("SELECT * FROM notifications WHERE userId = ? ORDER BY createdAt DESC").all(req.user.uid);
+      res.json(notifications);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch notifications" });
+    }
+  });
+
+  app.put("/api/notifications/:id/read", authenticate, (req: any, res) => {
+    try {
+      db.prepare("UPDATE notifications SET read = 1 WHERE id = ? AND userId = ?").run(req.params.id, req.user.uid);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to mark notification as read" });
+    }
+  });
+
+  app.delete("/api/notifications/:id", authenticate, (req: any, res) => {
+    try {
+      db.prepare("DELETE FROM notifications WHERE id = ? AND userId = ?").run(req.params.id, req.user.uid);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete notification" });
+    }
+  });
+
+  app.post("/api/notifications/read-all", authenticate, (req: any, res) => {
+    try {
+      db.prepare("UPDATE notifications SET read = 1 WHERE userId = ?").run(req.user.uid);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to mark all notifications as read" });
+    }
+  });
   app.get("/api/tasks", authenticate, (req: any, res) => {
     try {
       const tasks = db.prepare("SELECT * FROM tasks WHERE userId = ? ORDER BY createdAt DESC").all(req.user.uid);
@@ -1563,7 +1690,7 @@ const checkDomainLimit = (userId: string) => {
       }
 
       const id = nanoid(10);
-      db.prepare("INSERT INTO tasks (id, userId, title, description, dueDate) VALUES (?, ?, ?, ?, ?)").run(
+      db.prepare("INSERT INTO tasks (id, userId, title, description, dueDate, notified) VALUES (?, ?, ?, ?, ?, 0)").run(
         id, req.user.uid, title, description, dueDate
       );
       const newTask = db.prepare("SELECT * FROM tasks WHERE id = ?").get(id);
@@ -1587,8 +1714,18 @@ const checkDomainLimit = (userId: string) => {
 
       if (title !== undefined) { updates.push("title = ?"); values.push(title); }
       if (description !== undefined) { updates.push("description = ?"); values.push(description); }
-      if (completed !== undefined) { updates.push("completed = ?"); values.push(completed ? 1 : 0); }
-      if (dueDate !== undefined) { updates.push("dueDate = ?"); values.push(dueDate); }
+      if (dueDate !== undefined) { 
+        updates.push("dueDate = ?"); 
+        values.push(dueDate); 
+        updates.push("notified = 0");
+      }
+      if (completed !== undefined) { 
+        updates.push("completed = ?"); 
+        values.push(completed ? 1 : 0); 
+        if (!completed) {
+          updates.push("notified = 0");
+        }
+      }
 
       if (updates.length > 0) {
         values.push(id);
@@ -1706,17 +1843,6 @@ const checkDomainLimit = (userId: string) => {
       res.redirect('/server-error');
     }
   });
-
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    app.use(express.static(path.resolve("dist")));
-  }
 
   // Public Settings & Stats
   app.get("/api/public/settings", (_req, res) => {
@@ -1851,8 +1977,16 @@ const checkDomainLimit = (userId: string) => {
     }
   });
 
-  // Catch-all route for SPA fallback in production
-  if (process.env.NODE_ENV === "production") {
+  // Vite middleware for development
+  if (process.env.NODE_ENV !== "production") {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+  } else {
+    app.use(express.static(path.resolve("dist")));
+    // Catch-all route for SPA fallback in production
     app.get("*", (_req, res) => {
       res.sendFile(path.resolve("dist/index.html"));
     });
@@ -1870,6 +2004,53 @@ const checkDomainLimit = (userId: string) => {
     const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
     const sevenDaysStart = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     const sevenDaysEnd = new Date(now.getTime() + 8 * 24 * 60 * 60 * 1000);
+
+    try {
+      const now = new Date();
+      const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+      const upcomingTasks = db.prepare(`
+        SELECT t.*, u.email, u.name as userName
+        FROM tasks t
+        JOIN users u ON t.userId = u.id
+        WHERE t.completed = 0 
+        AND t.notified = 0 
+        AND t.dueDate IS NOT NULL 
+        AND t.dueDate > ? 
+        AND t.dueDate <= ?
+      `).all(now.toISOString(), tomorrow.toISOString()) as any[];
+
+      for (const task of upcomingTasks) {
+        const subject = `Task Reminder: ${task.title}`;
+        const html = `
+          <h2>Hello ${task.userName || 'User'},</h2>
+          <p>This is a reminder that your task "<strong>${task.title}</strong>" is due soon on <strong>${new Date(task.dueDate).toLocaleString()}</strong>.</p>
+          ${task.description ? `<p>Description: ${task.description}</p>` : ''}
+          <p>Please log in to your account to manage your tasks.</p>
+          <br/>
+          <p>Best regards,</p>
+          <p>The Cutly Team</p>
+        `;
+        
+        // Send email
+        await sendEmail(task.email, subject, html);
+
+        // Create in-app notification
+        const notificationId = nanoid();
+        db.prepare("INSERT INTO notifications (id, userId, title, message, type) VALUES (?, ?, ?, ?, ?)").run(
+          notificationId,
+          task.userId,
+          "Task Due Soon",
+          `Your task "${task.title}" is due on ${new Date(task.dueDate).toLocaleString()}`,
+          "task_reminder"
+        );
+
+        // Mark task as notified
+        db.prepare("UPDATE tasks SET notified = 1 WHERE id = ?").run(task.id);
+      }
+    } catch (error) {
+      console.error('Error checking upcoming tasks:', error);
+    }
 
     // Check expiring plans (3 days)
     try {

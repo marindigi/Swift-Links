@@ -69,8 +69,8 @@ export const PasswordStrengthIndicator: React.FC<PasswordStrengthIndicatorProps>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {criteria.map((criterion, index) => (
-          <div key={index} className="flex items-center gap-2">
+        {criteria.map((criterion) => (
+          <div key={criterion.label} className="flex items-center gap-2">
             <div className={cn(
               "w-4 h-4 rounded-full flex items-center justify-center shrink-0 transition-colors",
               criterion.met 

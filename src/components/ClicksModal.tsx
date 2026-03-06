@@ -13,7 +13,8 @@ interface ClicksModalProps {
 export const ClicksModal: React.FC<ClicksModalProps> = ({ isOpen, onClose, clicks, theme }) => {
   const uniqueClicks = React.useMemo(() => {
     if (!Array.isArray(clicks)) return [];
-    return Array.from(new Map(clicks.map(c => [c.id || Math.random(), c])).values());
+    // Ensure each click has a stable ID for the key prop
+    return clicks.map((c, i) => ({ ...c, _stableId: c.id || `temp-${i}` }));
   }, [clicks]);
 
   return (
@@ -51,11 +52,12 @@ export const ClicksModal: React.FC<ClicksModalProps> = ({ isOpen, onClose, click
                     <th className="pb-4">DEVICE</th>
                     <th className="pb-4">BROWSER</th>
                     <th className="pb-4">OS</th>
+                    <th className="pb-4">USER AGENT</th>
                   </tr>
                 </thead>
                 <tbody className={theme === 'dark' ? "text-white" : "text-gray-900"}>
-                  {uniqueClicks.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map((click: any, idx: number) => (
-                    <tr key={click.id || idx} className={cn("border-t", theme === 'dark' ? "border-white/5" : "border-gray-100")}>
+                  {uniqueClicks.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map((click: any) => (
+                    <tr key={click._stableId} className={cn("border-t", theme === 'dark' ? "border-white/5" : "border-gray-100")}>
                       <td className="py-4">{new Date(click.timestamp).toLocaleString()}</td>
                       <td className="py-4 flex items-center gap-2">
                         <Globe size={12} />
@@ -69,6 +71,7 @@ export const ClicksModal: React.FC<ClicksModalProps> = ({ isOpen, onClose, click
                         {click.browser || 'Unknown'}
                       </td>
                       <td className="py-4">{click.os || 'Unknown'}</td>
+                      <td className="py-4 max-w-[200px] truncate opacity-60" title={click.userAgent}>{click.userAgent || 'Unknown'}</td>
                     </tr>
                   ))}
                 </tbody>

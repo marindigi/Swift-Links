@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Link2, ArrowRight, Loader2, Check, Copy, ExternalLink, History, Download, Globe } from 'lucide-react';
+import { Link2, ArrowRight, Loader2, Check, Copy, ExternalLink, History, Download, Globe, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -357,20 +357,31 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, 
                   required
                 />
               ) : (
-                <input
-                  type="url"
-                  placeholder={isBulkMode ? "Enter base URL to generate bulk links..." : "Paste your long URL here..."}
-                  value={url}
-                  onChange={(e) => { setUrl(e.target.value); setHasError(false); setShortUrl(null); }}
-                  className={cn(
-                    "w-full pl-12 pr-4 py-4 rounded-2xl border outline-none transition-all font-medium text-lg",
-                    theme === 'dark' 
-                      ? "bg-black/20 border-white/10 text-white placeholder:text-gray-600 focus:border-brand/50 focus:bg-black/40" 
-                      : "bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-brand/50 focus:bg-white",
-                    hasError && "border-red-400 focus:border-red-400 bg-red-50/10"
+                <>
+                  <input
+                    type="url"
+                    placeholder={isBulkMode ? "Enter base URL to generate bulk links..." : "Paste your long URL here..."}
+                    value={url}
+                    onChange={(e) => { setUrl(e.target.value); setHasError(false); setShortUrl(null); }}
+                    className={cn(
+                      "w-full pl-12 pr-12 py-4 rounded-2xl border outline-none transition-all font-medium text-lg",
+                      theme === 'dark' 
+                        ? "bg-black/20 border-white/10 text-white placeholder:text-gray-600 focus:border-brand/50 focus:bg-black/40" 
+                        : "bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-brand/50 focus:bg-white",
+                      hasError && "border-red-400 focus:border-red-400 bg-red-50/10"
+                    )}
+                    required
+                  />
+                  {url && (
+                    <button
+                      type="button"
+                      onClick={() => { setUrl(''); setHasError(false); setShortUrl(null); }}
+                      className="absolute right-4 inset-y-0 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      <X size={18} />
+                    </button>
                   )}
-                  required
-                />
+                </>
               )}
               {isBulkMode && bulkType === 'repeat' && (
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
@@ -492,7 +503,7 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, 
                     <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-2">Failed URLs ({bulkFailedUrls.length})</p>
                     <div className="max-h-32 overflow-y-auto custom-scrollbar space-y-1">
                       {bulkFailedUrls.map((item, idx) => (
-                        <div key={idx} className="flex items-center justify-between text-[11px] p-2 rounded-lg bg-red-500/5 border border-red-500/10">
+                        <div key={`${item.url}-${idx}`} className="flex items-center justify-between text-[11px] p-2 rounded-lg bg-red-500/5 border border-red-500/10">
                           <span className="truncate text-gray-500 max-w-[70%]">{item.url}</span>
                           <span className="text-red-500 font-bold">{item.error}</span>
                         </div>

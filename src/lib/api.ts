@@ -1,5 +1,5 @@
 import { toast } from 'react-hot-toast';
-import { supabase } from '../supabaseClient';
+import { auth } from './firebase';
 import { loadingManager } from './loading';
 
 interface ApiOptions {
@@ -23,8 +23,8 @@ export async function apiClient<T = any>(endpoint: string, options: ApiOptions =
 
   loadingManager.setLoading(true);
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
+    const user = auth.currentUser;
+    const token = user ? await user.getIdToken() : null;
 
     const response = await fetch(endpoint, {
       method,

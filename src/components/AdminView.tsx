@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { nanoid } from 'nanoid';
-import { Shield, Trash2, Check, X, Search, User, Settings, Layout, Plus } from 'lucide-react';
+import { Shield, Trash2, Search, User as UserIcon, Settings, Layout, Plus, ArrowUpDown, Edit2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { apiClient } from '../lib/api';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { LandingFeature, LandingFaq } from '../types';
+import { LandingFeature, LandingFaq, User as UserType } from '../types';
 import { DeleteUserModal } from './DeleteUserModal';
+import { EditUserModal } from './EditUserModal';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -14,6 +15,7 @@ function cn(...inputs: ClassValue[]) {
 
 interface AdminViewProps {
   theme: 'light' | 'dark';
+  user: UserType | null;
 }
 
 interface UserData {
@@ -37,7 +39,16 @@ interface Setting {
   value: string;
 }
 
-export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
+export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
+  if (user?.role !== 'admin') {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <Shield className="text-red-500 mb-4" size={48} />
+        <h2 className="text-2xl font-bold">Access Denied</h2>
+        <p className="text-gray-500">You do not have permission to access the admin panel.</p>
+      </div>
+    );
+  }
   const [activeTab, setActiveTab] = useState<'users' | 'settings' | 'content'>('users');
   const [users, setUsers] = useState<UserData[]>([]);
   const [settings, setSettings] = useState<Setting[]>([]);
@@ -45,18 +56,10 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
   const [faqs, setFaqs] = useState<LandingFaq[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [editingUserId, setEditingUserId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ 
-    role: '', 
-    plan: '', 
-    status: '', 
-    expiresAt: '', 
-    pendingPlan: '',
-    name: '',
-    email: '',
-    message: ''
-  });
-
+  const [sortBy, setSortBy] = useState<'createdAt' | 'email' | 'usage' | 'plan'>('createdAt');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  
+  const [editingUser, setEditingUser] = useState<UserData | null>(null);
   const [userToDelete, setUserToDelete] = useState<UserData | null>(null);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
@@ -212,16 +215,16 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
     }
   };
 
-  const handleUpdateUser = async (userId: string) => {
+  const handleUpdateUser = async (userId: string, data: any) => {
     try {
       await apiClient(`/api/admin/users/${userId}/update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm),
+        body: JSON.stringify(data),
       });
       toast.success('User updated successfully');
-      setUsers(prev => Array.isArray(prev) ? prev.map(u => u.id === userId ? { ...u, ...editForm, expiresAt: editForm.expiresAt || null, pendingPlan: editForm.pendingPlan || null } : u) : []);
-      setEditingUserId(null);
+      setUsers(prev => Array.isArray(prev) ? prev.map(u => u.id === userId ? { ...u, ...data, expiresAt: data.expiresAt || null, pendingPlan: data.pendingPlan || null } : u) : []);
+      setEditingUser(null);
     } catch (error) {
       toast.error('Failed to update user');
     }
@@ -290,10 +293,34 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
     }
   };
 
-  const filteredUsers = (Array.isArray(users) ? users : []).filter(user => 
-    user.email?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    user.id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = (Array.isArray(users) ? users : [])
+    .filter(user => 
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      user.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.name?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      let comparison = 0;
+      if (sortBy === 'createdAt') {
+        comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      } else if (sortBy === 'email') {
+        comparison = (a.email || '').localeCompare(b.email || '');
+      } else if (sortBy === 'usage') {
+        comparison = (a.usage?.linksThisMonth || 0) - (b.usage?.linksThisMonth || 0);
+      } else if (sortBy === 'plan') {
+        comparison = (a.plan || '').localeCompare(b.plan || '');
+      }
+      return sortOrder === 'desc' ? -comparison : comparison;
+    });
+
+  const toggleSort = (field: typeof sortBy) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('desc');
+    }
+  };
 
   return (
     <div className="w-full max-w-5xl mx-auto">
@@ -303,11 +330,11 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
           theme === 'dark' ? "text-white" : "text-gray-900"
         )}>
           <Shield className="text-brand" size={32} />
-          Admin Dashboard
+          {settings.find(s => s.key === 'site_name')?.value || "Admin"} Dashboard
         </h2>
         <div className="flex items-center gap-2 p-1 bg-gray-100 dark:bg-white/5 rounded-2xl">
           {[
-            { id: 'users', label: 'Users', icon: User },
+            { id: 'users', label: 'Users', icon: UserIcon },
             { id: 'settings', label: 'Settings', icon: Settings },
             { id: 'content', label: 'Content', icon: Layout }
           ].map((tab) => (
@@ -386,14 +413,34 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
                     className="rounded border-gray-300 text-brand focus:ring-brand cursor-pointer"
                   />
                 </th>
-                <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">User</th>
-                <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">Usage</th>
+                <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">
+                  <button onClick={() => toggleSort('email')} className="flex items-center gap-1 hover:text-brand transition-colors">
+                    User
+                    <ArrowUpDown size={10} />
+                  </button>
+                </th>
+                <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">
+                  <button onClick={() => toggleSort('usage')} className="flex items-center gap-1 hover:text-brand transition-colors">
+                    Usage
+                    <ArrowUpDown size={10} />
+                  </button>
+                </th>
                 <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">Role</th>
-                <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs" title="The subscription level of the user (Free, Pro, Enterprise)">Plan</th>
-                <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs" title="The current account status (Active, Inactive, Pending)">Status</th>
+                <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">
+                  <button onClick={() => toggleSort('plan')} className="flex items-center gap-1 hover:text-brand transition-colors">
+                    Plan
+                    <ArrowUpDown size={10} />
+                  </button>
+                </th>
+                <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">Status</th>
                 <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">Message</th>
                 <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">Expires At</th>
-                <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">Joined</th>
+                <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">
+                  <button onClick={() => toggleSort('createdAt')} className="flex items-center gap-1 hover:text-brand transition-colors">
+                    Joined
+                    <ArrowUpDown size={10} />
+                  </button>
+                </th>
                 <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs text-right">Actions</th>
               </tr>
             </thead>
@@ -436,41 +483,14 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
                           "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
                           theme === 'dark' ? "bg-white/10 text-gray-300" : "bg-gray-100 text-gray-600"
                         )}>
-                          {user.email?.[0]?.toUpperCase() || <User size={14} />}
+                          {user.email?.[0]?.toUpperCase() || <UserIcon size={14} />}
                         </div>
                         <div>
-                          {editingUserId === user.id ? (
-                            <div className="flex flex-col gap-1">
-                              <input
-                                type="text"
-                                value={editForm.name}
-                                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                                placeholder="Name"
-                                className={cn(
-                                  "px-2 py-1 rounded-lg text-xs border outline-none focus:ring-2 focus:ring-brand/20",
-                                  theme === 'dark' ? "bg-black border-white/20 text-white" : "bg-white border-gray-200 text-gray-900"
-                                )}
-                              />
-                              <input
-                                type="email"
-                                value={editForm.email}
-                                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                                placeholder="Email"
-                                className={cn(
-                                  "px-2 py-1 rounded-lg text-xs border outline-none focus:ring-2 focus:ring-brand/20",
-                                  theme === 'dark' ? "bg-black border-white/20 text-white" : "bg-white border-gray-200 text-gray-900"
-                                )}
-                              />
-                            </div>
-                          ) : (
-                            <>
-                              <div className={cn("font-medium text-sm", theme === 'dark' ? "text-gray-200" : "text-gray-900")}>
-                                {user.name || 'No Name'}
-                              </div>
-                              <div className="text-xs text-gray-500">{user.email || 'Anonymous'}</div>
-                              <div className="text-[10px] text-gray-500 font-mono">{user.id}</div>
-                            </>
-                          )}
+                          <div className={cn("font-medium text-sm", theme === 'dark' ? "text-gray-200" : "text-gray-900")}>
+                            {user.name || 'No Name'}
+                          </div>
+                          <div className="text-xs text-gray-500">{user.email || 'Anonymous'}</div>
+                          <div className="text-[10px] text-gray-500 font-mono">{user.id}</div>
                         </div>
                       </div>
                     </td>
@@ -491,205 +511,96 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      {editingUserId === user.id ? (
-                        <select
-                          value={editForm.role}
-                          onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
-                          className={cn(
-                            "px-2 py-1 rounded-lg text-xs border outline-none focus:ring-2 focus:ring-brand/20",
-                            theme === 'dark' ? "bg-black border-white/20 text-white" : "bg-white border-gray-200 text-gray-900"
-                          )}
-                        >
-                          <option value="user">User</option>
-                          <option value="editor">Editor</option>
-                          <option value="admin">Admin</option>
-                        </select>
-                      ) : (
-                        <span className={cn(
-                          "px-2 py-1 rounded-lg text-xs font-bold uppercase tracking-wider",
-                          user.role === 'admin' 
-                            ? "bg-purple-500/10 text-purple-500" 
-                            : user.role === 'editor'
-                              ? "bg-blue-500/10 text-blue-500"
-                              : "bg-gray-500/10 text-gray-500"
-                        )}>
-                          {user.role}
-                        </span>
-                      )}
+                      <span className={cn(
+                        "px-2 py-1 rounded-lg text-xs font-bold uppercase tracking-wider",
+                        user.role === 'admin' 
+                          ? "bg-purple-500/10 text-purple-500" 
+                          : user.role === 'editor'
+                            ? "bg-blue-500/10 text-blue-500"
+                            : "bg-gray-500/10 text-gray-500"
+                      )}>
+                        {user.role}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
-                      {editingUserId === user.id ? (
-                        <select
-                          value={editForm.plan}
-                          onChange={(e) => setEditForm({ ...editForm, plan: e.target.value })}
-                          className={cn(
-                            "px-2 py-1 rounded-lg text-xs border outline-none focus:ring-2 focus:ring-brand/20",
-                            theme === 'dark' ? "bg-black border-white/20 text-white" : "bg-white border-gray-200 text-gray-900"
-                          )}
-                        >
-                          <option value="free">Free</option>
-                          <option value="pro">Pro</option>
-                          <option value="enterprise">Enterprise</option>
-                        </select>
-                      ) : (
-                        <div className="flex flex-col gap-1">
-                          <span className={cn(
-                            "px-2 py-1 rounded-lg text-xs font-bold uppercase tracking-wider w-fit",
-                            user.plan === 'pro' || user.plan === 'enterprise'
-                              ? "bg-emerald-500/10 text-emerald-500" 
-                              : "bg-gray-500/10 text-gray-500"
-                          )}>
-                            {user.plan}
-                          </span>
-                          {user.pendingPlan && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] text-amber-500 font-bold uppercase animate-pulse">
-                                Pending: {user.pendingPlan}
-                              </span>
-                              <button 
-                                onClick={() => handleApprovePlan(user)}
-                                className="text-[10px] bg-emerald-500 text-white px-1.5 py-0.5 rounded hover:bg-emerald-600 transition-colors font-bold"
-                              >
-                                Approve
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {editingUserId === user.id ? (
-                        <select
-                          value={editForm.status}
-                          onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                          className={cn(
-                            "px-2 py-1 rounded-lg text-xs border outline-none focus:ring-2 focus:ring-brand/20",
-                            theme === 'dark' ? "bg-black border-white/20 text-white" : "bg-white border-gray-200 text-gray-900"
-                          )}
-                        >
-                          <option value="active">Active</option>
-                          <option value="inactive">Inactive</option>
-                          <option value="pending">Pending</option>
-                        </select>
-                      ) : (
+                      <div className="flex flex-col gap-1">
                         <span className={cn(
-                          "px-2 py-1 rounded-lg text-xs font-bold uppercase tracking-wider",
-                          user.status === 'active' 
+                          "px-2 py-1 rounded-lg text-xs font-bold uppercase tracking-wider w-fit",
+                          user.plan === 'pro' || user.plan === 'enterprise'
                             ? "bg-emerald-500/10 text-emerald-500" 
-                            : user.status === 'pending'
-                              ? "bg-amber-500/10 text-amber-500"
-                              : "bg-red-500/10 text-red-500"
+                            : "bg-gray-500/10 text-gray-500"
                         )}>
-                          {user.status || 'active'}
+                          {user.plan}
                         </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {editingUserId === user.id ? (
-                        <input
-                          type="text"
-                          value={editForm.message}
-                          onChange={(e) => setEditForm({ ...editForm, message: e.target.value })}
-                          placeholder="Admin message"
-                          className={cn(
-                            "px-2 py-1 rounded-lg text-xs border outline-none focus:ring-2 focus:ring-brand/20 w-32",
-                            theme === 'dark' ? "bg-black border-white/20 text-white" : "bg-white border-gray-200 text-gray-900"
-                          )}
-                        />
-                      ) : (
-                        <span className="text-xs text-gray-500 truncate max-w-[100px] block" title={user.message || ''}>
-                          {user.message || 'No message'}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {editingUserId === user.id ? (
-                        <input
-                          type="date"
-                          value={(() => {
-                            try {
-                              return editForm.expiresAt ? new Date(editForm.expiresAt).toISOString().split('T')[0] : '';
-                            } catch {
-                              return '';
-                            }
-                          })()}
-                          onChange={(e) => setEditForm({ ...editForm, expiresAt: e.target.value })}
-                          className={cn(
-                            "px-2 py-1 rounded-lg text-xs border outline-none focus:ring-2 focus:ring-brand/20 w-32",
-                            theme === 'dark' ? "bg-black border-white/20 text-white" : "bg-white border-gray-200 text-gray-900"
-                          )}
-                        />
-                      ) : (
-                        <div className="flex flex-col gap-1">
-                          <span className="text-xs text-gray-500">
-                            {user.expiresAt ? new Date(user.expiresAt).toLocaleDateString(undefined, { timeZone: 'UTC' }) : 'Never'}
-                          </span>
-                          {user.expiresAt && new Date(user.expiresAt) < new Date() && (
-                            <span className="text-[10px] bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold uppercase w-fit">
-                              Expired
+                        {user.pendingPlan && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-amber-500 font-bold uppercase animate-pulse">
+                              Pending: {user.pendingPlan}
                             </span>
-                          )}
-                        </div>
-                      )}
+                            <button 
+                              onClick={() => handleApprovePlan(user)}
+                              className="text-[10px] bg-emerald-500 text-white px-1.5 py-0.5 rounded hover:bg-emerald-600 transition-colors font-bold"
+                            >
+                              Approve
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={cn(
+                        "px-2 py-1 rounded-lg text-xs font-bold uppercase tracking-wider",
+                        user.status === 'active' 
+                          ? "bg-emerald-500/10 text-emerald-500" 
+                          : user.status === 'pending'
+                            ? "bg-amber-500/10 text-amber-500"
+                            : "bg-red-500/10 text-red-500"
+                      )}>
+                        {user.status || 'active'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-xs text-gray-500 truncate max-w-[100px] block" title={user.message || ''}>
+                        {user.message || 'No message'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs text-gray-500">
+                          {user.expiresAt ? new Date(user.expiresAt).toLocaleDateString(undefined, { timeZone: 'UTC' }) : 'Never'}
+                        </span>
+                        {user.expiresAt && new Date(user.expiresAt) < new Date() && (
+                          <span className="text-[10px] bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold uppercase w-fit">
+                            Expired
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-xs text-gray-500">
                       {new Date(user.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {editingUserId === user.id ? (
-                          <>
-                            <button
-                              onClick={() => handleUpdateUser(user.id)}
-                              className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-colors"
-                              title="Save"
-                            >
-                              <Check size={14} />
-                            </button>
-                            <button
-                              onClick={() => setEditingUserId(null)}
-                              className="p-1.5 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
-                              title="Cancel"
-                            >
-                              <X size={14} />
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => {
-                                setEditingUserId(user.id);
-                                setEditForm({ 
-                                  role: user.role, 
-                                  plan: user.plan, 
-                                  status: user.status || 'active', 
-                                  expiresAt: user.expiresAt || '',
-                                  pendingPlan: user.pendingPlan || '',
-                                  name: user.name || '',
-                                  email: user.email || '',
-                                  message: user.message || ''
-                                });
-                              }}
-                              className={cn(
-                                "p-1.5 rounded-lg transition-colors",
-                                theme === 'dark' ? "hover:bg-white/10 text-gray-400 hover:text-white" : "hover:bg-gray-100 text-gray-500 hover:text-gray-900"
-                              )}
-                              title="Edit"
-                            >
-                              <Settings size={14} />
-                            </button>
-                            <button
-                              onClick={() => setUserToDelete(user)}
-                              className={cn(
-                                "p-1.5 rounded-lg transition-colors",
-                                theme === 'dark' ? "hover:bg-red-500/20 text-gray-400 hover:text-red-400" : "hover:bg-red-50 text-gray-500 hover:text-red-600"
-                              )}
-                              title="Delete"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </>
-                        )}
+                        <button
+                          onClick={() => setEditingUser(user)}
+                          className={cn(
+                            "p-1.5 rounded-lg transition-colors",
+                            theme === 'dark' ? "hover:bg-white/10 text-gray-400 hover:text-white" : "hover:bg-gray-100 text-gray-500 hover:text-gray-900"
+                          )}
+                          title="Edit"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button
+                          onClick={() => setUserToDelete(user)}
+                          className={cn(
+                            "p-1.5 rounded-lg transition-colors",
+                            theme === 'dark' ? "hover:bg-red-500/20 text-gray-400 hover:text-red-400" : "hover:bg-red-50 text-gray-500 hover:text-red-600"
+                          )}
+                          title="Delete"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -772,15 +683,21 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
                   )}
                 />
                 <div className="mt-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-gray-500 uppercase font-bold">Icon:</span>
-                    <input 
-                      type="text"
-                      defaultValue={f.icon}
-                      onBlur={(e) => handleUpdateFeature({ ...f, icon: e.target.value })}
-                      className="text-[10px] bg-transparent font-mono outline-none focus:ring-1 focus:ring-brand rounded px-1"
-                    />
-                  </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-gray-500 uppercase font-bold">Icon:</span>
+                      <select 
+                        value={f.icon}
+                        onChange={(e) => handleUpdateFeature({ ...f, icon: e.target.value })}
+                        className={cn(
+                          "text-[10px] px-2 py-1 rounded-lg border outline-none focus:ring-2 focus:ring-brand/20 transition-all font-bold uppercase tracking-widest",
+                          theme === 'dark' ? "bg-black border-white/20 text-white" : "bg-white border-gray-200 text-gray-900"
+                        )}
+                      >
+                        {['Sparkles', 'Zap', 'Shield', 'Globe', 'Activity', 'BarChart2', 'Lock', 'Cpu', 'Layers', 'MousePointer2', 'Share2', 'QrCode'].map(icon => (
+                          <option key={icon} value={icon}>{icon}</option>
+                        ))}
+                      </select>
+                    </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] text-gray-500 uppercase font-bold">Order:</span>
                     <input 
@@ -835,14 +752,25 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
                     theme === 'dark' ? "text-gray-400" : "text-gray-600"
                   )}
                 />
-                <div className="mt-4 flex items-center gap-2">
-                  <span className="text-[10px] text-gray-500 uppercase font-bold">Order:</span>
-                  <input 
-                    type="number"
-                    defaultValue={faq.displayOrder}
-                    onBlur={(e) => handleUpdateFaq({ ...faq, displayOrder: parseInt(e.target.value) })}
-                    className="text-[10px] bg-transparent font-mono outline-none focus:ring-1 focus:ring-brand rounded px-1 w-10"
-                  />
+                <div className="mt-4 flex items-center gap-6">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-gray-500 uppercase font-bold">Order:</span>
+                    <input 
+                      type="number"
+                      defaultValue={faq.displayOrder}
+                      onBlur={(e) => handleUpdateFaq({ ...faq, displayOrder: parseInt(e.target.value) })}
+                      className="text-[10px] bg-transparent font-mono outline-none focus:ring-1 focus:ring-brand rounded px-1 w-10"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={!!faq.hidden}
+                      onChange={(e) => handleUpdateFaq({ ...faq, hidden: e.target.checked })}
+                      className="rounded border-gray-300 text-brand focus:ring-brand cursor-pointer"
+                    />
+                    <span className="text-[10px] text-gray-500 uppercase font-bold">Hidden</span>
+                  </div>
                 </div>
               </div>
             ))}
@@ -858,6 +786,15 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme }) => {
         onConfirm={() => userToDelete && handleDeleteUser(userToDelete.id)} 
         userEmail={userToDelete?.email || null} 
         theme={theme} 
+      />
+
+      {/* Edit User Modal */}
+      <EditUserModal
+        isOpen={!!editingUser}
+        onClose={() => setEditingUser(null)}
+        user={editingUser}
+        onSave={handleUpdateUser}
+        theme={theme}
       />
     </div>
   );

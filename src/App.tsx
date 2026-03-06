@@ -11,6 +11,17 @@ import {
 import { Toaster, toast } from 'react-hot-toast';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { 
+  onAuthStateChanged, 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut, 
+  sendPasswordResetEmail,
+  confirmPasswordReset,
+  updatePassword,
+  sendEmailVerification
+} from 'firebase/auth';
+import { auth } from './lib/firebase';
 import { apiClient } from './lib/api';
 import { AnalyticsView } from './components/AnalyticsView';
 import { HistoryList } from './components/HistoryList';
@@ -24,9 +35,10 @@ import { PaymentModal } from './components/PaymentModal';
 import { FeedbackModal } from './components/FeedbackModal';
 import { AdminView } from './components/AdminView';
 import { SupportView } from './components/SupportView';
-import { TasksView } from './components/TasksView';
 import { QrCodeModal } from './components/QrCodeModal';
 import { ClearHistoryModal } from './components/ClearHistoryModal';
+import { PasswordStrengthIndicator } from './components/PasswordStrengthIndicator';
+import { LinkDetailsModal } from './components/LinkDetailsModal';
 import { Domain, HistoryItem, ApiKey, User } from './types';
 
 function cn(...inputs: ClassValue[]) {
@@ -80,7 +92,6 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 }
 
-import { supabase } from './supabaseClient';
 
 export default function App() {
   return (
@@ -125,6 +136,8 @@ function AppContent() {
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [isClearHistoryModalOpen, setIsClearHistoryModalOpen] = useState(false);
+  const [selectedLink, setSelectedLink] = useState<HistoryItem | null>(null);
+  const [isLinkDetailsModalOpen, setIsLinkDetailsModalOpen] = useState(false);
   const [expiresAt, setExpiresAt] = useState('');
   const [hasError, setHasError] = useState(false);
   
@@ -134,7 +147,7 @@ function AppContent() {
   const [selectedPlan, setSelectedPlan] = useState<{ id: string; name: string; price: string } | null>(null);
   
   // Analytics state
-  const [view, setView] = useState<'home' | 'analytics' | 'profile' | 'admin' | 'tasks' | 'domains' | 'api-keys' | 'support'>('home');
+  const [view, setView] = useState<'home' | 'analytics' | 'profile' | 'admin' | 'domains' | 'api-keys' | 'support'>('home');
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
   
@@ -192,55 +205,18 @@ function AppContent() {
   }, []);
 
   const checkAuth = async () => {
-    try {
-      // First try to authenticate via local API (which checks both local session and Supabase token)
+    onAuthStateChanged(auth, async (firebaseUser) => {
       try {
-        const userData = await apiClient<User>('/api/auth/me', { showToast: false });
-        if (userData && !('error' in userData)) {
-          setUser(userData);
-          
-          fetchDomains();
-          fetchApiKeys();
-          fetchAnalytics();
-
-          if (userData.status === 'inactive') {
-            toast.error('Your account is currently inactive. Please contact admin support.', {
-              duration: 6000,
-              icon: '🔒'
-            });
-          }
-          
-          if (window.location.pathname === '/login') {
-            window.history.replaceState(null, '', '/');
-          }
-          return;
-        }
-      } catch (e) {
-        // Not logged in via local session or Supabase
-      }
-
-      setUser(null);
-      if (window.location.pathname !== '/' && window.location.pathname !== '/login' && window.location.pathname !== '/expired' && window.location.pathname !== '/not-found' && window.location.pathname !== '/update-password') {
-        window.history.replaceState(null, '', '/login');
-      }
-    } catch (error) {
-      console.error('Auth check error:', error);
-      setUser(null);
-      if (window.location.pathname !== '/' && window.location.pathname !== '/login' && window.location.pathname !== '/expired' && window.location.pathname !== '/not-found' && window.location.pathname !== '/update-password') {
-        window.history.replaceState(null, '', '/login');
-      }
-    } finally {
-      setIsCheckingAuth(false);
-    }
-
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      try {
-        if (event === 'SIGNED_OUT' || !session) {
+        if (!firebaseUser) {
           // Verify if local session is also invalid before clearing user
           try {
             const userData = await apiClient<User>('/api/auth/me', { showToast: false });
             if (userData && !('error' in userData)) {
-              return; // Still logged in locally
+              setUser(userData);
+              fetchDomains();
+              fetchApiKeys();
+              fetchAnalytics();
+              return;
             }
           } catch(e) {}
           
@@ -251,35 +227,33 @@ function AppContent() {
           if (window.location.pathname !== '/' && window.location.pathname !== '/login' && window.location.pathname !== '/expired' && window.location.pathname !== '/not-found' && window.location.pathname !== '/update-password') {
             window.history.replaceState(null, '', '/login');
           }
-        } else if (session?.user) {
+        } else {
           try {
-            if (!user || user.id !== session.user.id) {
-              const userData = await apiClient<User>('/api/auth/me', { showToast: false });
-              setUser(userData);
-              
-              fetchDomains();
-              fetchApiKeys();
-              fetchAnalytics();
-              
-              const pendingPlan = localStorage.getItem('pendingPlan');
-              const pendingInterval = localStorage.getItem('pendingInterval') as 'monthly' | 'yearly';
-              
-              if (pendingPlan && pendingPlan !== 'hobby' && userData.plan === 'free') {
-                localStorage.removeItem('pendingPlan');
-                localStorage.removeItem('pendingInterval');
-                handleUpgrade(pendingPlan, pendingInterval);
-              }
+            const userData = await apiClient<User>('/api/auth/me', { showToast: false });
+            setUser({ ...userData, emailVerified: firebaseUser.emailVerified });
+            
+            fetchDomains();
+            fetchApiKeys();
+            fetchAnalytics();
+            
+            const pendingPlan = localStorage.getItem('pendingPlan');
+            const pendingInterval = localStorage.getItem('pendingInterval') as 'monthly' | 'yearly';
+            
+            if (pendingPlan && pendingPlan !== 'hobby' && userData.plan === 'free') {
+              localStorage.removeItem('pendingPlan');
+              localStorage.removeItem('pendingInterval');
+              handleUpgrade(pendingPlan, pendingInterval);
+            }
 
-              if (userData.status === 'inactive') {
-                toast.error('Your account is currently inactive. Please contact admin support.', {
-                  duration: 6000,
-                  icon: '🔒'
-                });
-              }
+            if (userData.status === 'inactive') {
+              toast.error('Your account is currently inactive. Please contact admin support.', {
+                duration: 6000,
+                icon: '🔒'
+              });
             }
           } catch (e) {
             console.error('Failed to fetch user profile on auth change:', e);
-            setUser({ id: session.user.id, email: session.user.email || '' });
+            setUser({ id: firebaseUser.uid, email: firebaseUser.email || '', emailVerified: firebaseUser.emailVerified });
           }
 
           if (window.location.pathname === '/login') {
@@ -288,6 +262,8 @@ function AppContent() {
         }
       } catch (error) {
         console.error('Auth state change error:', error);
+      } finally {
+        setIsCheckingAuth(false);
       }
     });
   };
@@ -309,47 +285,9 @@ function AppContent() {
 
     setIsLoggingIn(true);
     try {
-      // Try local login first
-      try {
-        const localData = await apiClient('/api/auth/login', {
-          method: 'POST',
-          body: JSON.stringify({ email: username, password }),
-          showToast: false
-        });
-        if (localData && localData.id) {
-          const userData = await apiClient<User>('/api/auth/me', { showToast: false });
-          if (userData && !('error' in userData)) {
-            setUser(userData);
-            fetchDomains();
-            fetchApiKeys();
-            fetchAnalytics();
-            if (window.location.pathname === '/login') {
-              window.history.replaceState(null, '', '/');
-            }
-            toast.success('Successfully logged in!');
-            return;
-          }
-        }
-      } catch (localError) {
-        // Local login failed, try Supabase
-      }
-
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: username,
-        password,
-      });
-
-      if (error) {
-        if (error.message.toLowerCase().includes('rate limit')) {
-          throw new Error('Login rate limit exceeded. Please wait a while before trying again.');
-        }
-        if (error.message.toLowerCase().includes('email not confirmed')) {
-          throw new Error('EMAIL_NOT_CONFIRMED');
-        }
-        throw error;
-      }
+      const userCredential = await signInWithEmailAndPassword(auth, username, password);
       
-      if (data.session) {
+      if (userCredential.user) {
         const userData = await apiClient<User>('/api/auth/me', { showToast: false });
         if (userData && !('error' in userData)) {
           setUser(userData);
@@ -364,64 +302,53 @@ function AppContent() {
       }
     } catch (error: any) {
       console.error('Login error:', error);
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        throw new Error('Email or password is incorrect');
+      }
+      if (error.code === 'auth/too-many-requests') {
+        throw new Error('Too many failed login attempts. Please try again later.');
+      }
       throw error;
     } finally {
       setIsLoggingIn(false);
     }
   };
 
-  const handleResendVerification = async (email: string) => {
-    try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: email,
-      });
-      if (error) throw error;
-      toast.success('Verification email resent!');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to resend verification email');
+  const handleResendVerification = async (_email: string) => {
+    const user = auth.currentUser;
+    if (user) {
+      try {
+        await sendEmailVerification(user);
+        toast.success('Verification email resent!');
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to resend verification email');
+      }
     }
   };
 
-  const handleSignup = async (username: string, password: string, fullName?: string, company?: string) => {
+  const handleSignup = async (username: string, password: string) => {
     if (!username || !password) {
       throw new Error('Please enter both email and password');
     }
 
     setIsLoggingIn(true);
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email: username,
-        password,
-        options: {
-          data: {
-            full_name: fullName || '',
-            company: company || '',
-          }
-        }
-      });
-
-      if (error) {
-        if (error.message.toLowerCase().includes('rate limit')) {
-          throw new Error('Email rate limit exceeded. Please wait a while before trying again, or increase the limit in your Supabase dashboard (Authentication -> Rate Limits).');
-        }
-        if (error.message.toLowerCase().includes('user already registered') || error.message.toLowerCase().includes('already exists')) {
-          throw new Error('An account with this email already exists. Please log in instead.');
-        }
-        throw error;
-      }
-
-      if (data.session) {
-        // Sign out immediately to prevent auto-login
-        await supabase.auth.signOut();
-        return 'Account created! Please check your email (including spam) to verify your account before logging in.';
-      } else if (data.user && !data.session) {
-        return 'Account created! Please check your email (including spam) to verify your account before logging in.';
-      } else {
-        return 'Account created! Please check your email (including spam) to verify your account before logging in.';
+      const userCredential = await createUserWithEmailAndPassword(auth, username, password);
+      
+      if (userCredential.user) {
+        await sendEmailVerification(userCredential.user);
+        const userData = await apiClient<User>('/api/auth/me', { showToast: false });
+        setUser(userData);
+        return 'Account created successfully! Please check your email to verify your account.';
       }
     } catch (error: any) {
       console.error('Signup error:', error);
+      if (error.code === 'auth/email-already-in-use') {
+        throw new Error('User already exists. Please sign in');
+      }
+      if (error.code === 'auth/weak-password') {
+        throw new Error('Password is too weak. Please use a stronger password.');
+      }
       throw error;
     } finally {
       setIsLoggingIn(false);
@@ -436,34 +363,30 @@ function AppContent() {
     setIsLoggingIn(true);
     try {
       // Try local reset first
-      try {
-        const localData = await apiClient('/api/auth/reset-password', {
-          method: 'POST',
-          body: JSON.stringify({ email: username }),
-          showToast: false
-        });
-        if (localData && localData.success) {
-          return 'If an account exists, a password reset link has been sent. Please check your email.';
-        }
-      } catch (localError) {
-        // Local reset failed, try Supabase
-      }
-
-      const { error } = await supabase.auth.resetPasswordForEmail(username, {
-        redirectTo: `${window.location.origin}/update-password`,
+      await apiClient('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: username }),
+        showToast: false
       });
-
-      if (error) {
-        if (error.message.toLowerCase().includes('rate limit')) {
-          throw new Error('Rate limit exceeded. Please wait a while before trying again.');
-        }
-        throw error;
+      
+      // Also trigger Firebase reset just in case they are a Firebase user
+      try {
+        await sendPasswordResetEmail(auth, username);
+      } catch (e) {
+        console.warn('Firebase reset email failed (might not be a Firebase user):', e);
       }
 
       return 'If an account exists, a password reset link has been sent. Please check your email.';
     } catch (error: any) {
       console.error('Reset password error:', error);
-      throw error;
+      // Fallback to Firebase if local fails or just return success message for security
+      try {
+        await sendPasswordResetEmail(auth, username);
+        return 'If an account exists, a password reset link has been sent. Please check your email.';
+      } catch (e) {
+        throw error;
+      }
     } finally {
       setIsLoggingIn(false);
     }
@@ -471,8 +394,8 @@ function AppContent() {
 
   const handleLogout = async () => {
     try {
+      await signOut(auth);
       await apiClient('/api/auth/logout', { method: 'POST', showToast: false }).catch(() => {});
-      await supabase.auth.signOut().catch(() => {});
       
       setUser(null);
       setDomains([]);
@@ -515,11 +438,12 @@ function AppContent() {
   };
 
   const handleGenerateApiKey = async (name: string) => {
+    const robustName = `${name} (${new Date().toLocaleString()})`;
     try {
       const newKey = await apiClient<ApiKey>('/api/keys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name: robustName }),
       });
       setApiKeys([...apiKeys, newKey]);
       return newKey;
@@ -564,9 +488,47 @@ function AppContent() {
   };
 
   const deleteFromHistory = async (id: string) => {
-    const newHistory = history.filter(item => item.id !== id);
-    saveHistory(newHistory);
-    toast.success('Deleted from history');
+    try {
+      if (user) {
+        await apiClient(`/api/urls/${id}`, { method: 'DELETE' });
+      }
+      const newHistory = history.filter(item => item.id !== id);
+      saveHistory(newHistory);
+      toast.success('Link deleted successfully');
+    } catch (error) {
+      // Error handled by apiClient
+      throw error;
+    }
+  };
+
+  const handleUpdateLink = async (id: string, data: { originalUrl?: string; expiresAt?: string | null }) => {
+    try {
+      const updatedItem = await apiClient(`/api/urls/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+        successMessage: 'Link updated successfully'
+      });
+      
+      const domain = updatedItem.domainName || window.location.host;
+      const protocol = window.location.protocol;
+      const constructedShortUrl = `${protocol}//${domain}/${updatedItem.id}`;
+
+      const newItem: HistoryItem = {
+        ...updatedItem,
+        shortUrl: constructedShortUrl,
+        timestamp: new Date(updatedItem.createdAt).getTime()
+      };
+      
+      const newHistory = history.map(item => item.id === id ? newItem : item);
+      saveHistory(newHistory);
+      
+      if (selectedLink?.id === id) {
+        setSelectedLink(newItem);
+      }
+    } catch (error) {
+      // Error handled by apiClient
+      throw error;
+    }
   };
 
   const bulkDeleteFromHistory = async (ids: string[]) => {
@@ -658,6 +620,11 @@ function AppContent() {
       return;
     }
 
+    if (user && !user.emailVerified) {
+      toast.error('Please verify your email address to shorten links.');
+      return;
+    }
+
     if (!url.trim()) {
       toast.error('Please enter a URL to shorten');
       setHasError(true);
@@ -739,6 +706,11 @@ function AppContent() {
       return;
     }
 
+    if (user && !user.emailVerified) {
+      toast.error('Please verify your email address to shorten links.');
+      return;
+    }
+
     setBulkLoading(true);
     setBulkUrls([]);
     setBulkProgress(0);
@@ -749,42 +721,70 @@ function AppContent() {
 
       if (bulkType === 'repeat') {
         // Validate URL
+        let validUrl = url.trim();
+        if (!/^https?:\/\//i.test(validUrl)) {
+          validUrl = `http://${validUrl}`;
+        }
+
         try {
-          new URL(url);
+          new URL(validUrl);
         } catch {
-          toast.error('Please enter a valid URL');
+          toast.error('Please enter a valid URL (e.g., https://example.com)');
           setBulkLoading(false);
           return;
         }
-        urlsToShorten = Array(Math.min(Math.max(bulkCount, 1), 1000)).fill(url);
+        urlsToShorten = Array(Math.min(Math.max(bulkCount, 1), 1000)).fill(validUrl);
       } else {
         // Parse list
-        urlsToShorten = bulkUrlList
+        const rawUrls = bulkUrlList
           .split('\n')
           .map(u => u.trim())
           .filter(u => u.length > 0);
         
-        if (urlsToShorten.length === 0) {
+        if (rawUrls.length === 0) {
           toast.error('Please enter at least one URL');
           setBulkLoading(false);
           return;
         }
 
-        // Validate all URLs
-        const invalidUrls = urlsToShorten.filter(u => {
+        const invalidUrls: string[] = [];
+        urlsToShorten = rawUrls.map(u => {
+          let processed = u;
+          if (!/^https?:\/\//i.test(processed)) {
+            processed = `http://${processed}`;
+          }
           try {
-            new URL(u);
-            return false;
+            new URL(processed);
+            return processed;
           } catch {
-            return true;
+            invalidUrls.push(u);
+            return '';
           }
         });
 
         if (invalidUrls.length > 0) {
-          toast.error(`Found ${invalidUrls.length} invalid URLs. Please check your list.`);
+          const firstFew = invalidUrls.slice(0, 3).join(', ');
+          const more = invalidUrls.length > 3 ? ` and ${invalidUrls.length - 3} more` : '';
+          toast.error(`Invalid URL format: ${firstFew}${more}. Please check your list.`, {
+            duration: 5000
+          });
           setBulkLoading(false);
           return;
         }
+      }
+
+      // Check plan limits
+      const plan = user?.plan || 'free';
+      const limits = {
+        free: { links: 50 },
+        pro: { links: Infinity },
+        enterprise: { links: Infinity }
+      }[plan as 'free' | 'pro' | 'enterprise'] || { links: 50 };
+
+      if (limits.links !== Infinity && (user?.usage?.linksThisMonth || 0) + urlsToShorten.length > limits.links) {
+        toast.error(`You have reached your monthly limit of ${limits.links} links. Please upgrade your plan.`);
+        setBulkLoading(false);
+        return;
       }
 
       const batchSize = 50; // Increased batch size for bulk API
@@ -1035,6 +1035,149 @@ function AppContent() {
     );
   }
 
+  if (isUpdatePasswordPage) {
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    
+    return (
+      <div className={cn(
+        "min-h-screen flex items-center justify-center p-6 transition-colors duration-500",
+        theme === 'dark' ? "bg-[#050505] text-gray-100" : "bg-[#fcfcfc] text-gray-900"
+      )}>
+        <Toaster position="bottom-center" />
+        <div className={cn(
+          "w-full max-w-md p-8 rounded-[32px] border shadow-2xl relative overflow-hidden",
+          theme === 'dark' ? "bg-[#0a0a0a] border-white/10" : "bg-white border-gray-200"
+        )}>
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-gradient-to-br from-[#6366f1] to-[#8b5cf6] rounded-2xl flex items-center justify-center text-white mx-auto mb-6 shadow-lg shadow-indigo-500/30">
+              <Lock size={32} />
+            </div>
+            <h3 className="text-2xl font-bold mb-2">Update Password</h3>
+            <p className="text-gray-500 text-sm">
+              Enter your new password below.
+            </p>
+          </div>
+          
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            
+            if (!newPassword) {
+              toast.error('Please enter a new password');
+              return;
+            }
+
+            if (newPassword !== confirmPassword) {
+              toast.error('Passwords do not match');
+              return;
+            }
+            
+            setIsLoggingIn(true);
+            try {
+              const urlParams = new URLSearchParams(window.location.search);
+              const token = urlParams.get('token');
+              const oobCode = urlParams.get('oobCode');
+              
+              if (token) {
+                // Local reset
+                await apiClient('/api/auth/update-password', {
+                  method: 'POST',
+                  body: JSON.stringify({ token, password: newPassword }),
+                  showToast: false
+                });
+                toast.success('Password updated successfully! Please log in.');
+                setTimeout(() => {
+                  window.history.replaceState(null, '', '/login');
+                  window.location.reload();
+                }, 1500);
+              } else if (oobCode) {
+                // Firebase reset
+                await confirmPasswordReset(auth, oobCode, newPassword);
+                toast.success('Password updated successfully!');
+                setTimeout(() => {
+                  window.history.replaceState(null, '', '/login');
+                  window.location.reload();
+                }, 1500);
+              } else {
+                // Try updating current user if logged in
+                if (auth.currentUser) {
+                  await updatePassword(auth.currentUser, newPassword);
+                  toast.success('Password updated successfully!');
+                  setTimeout(() => {
+                    window.history.replaceState(null, '', '/');
+                    window.location.reload();
+                  }, 1500);
+                } else {
+                  throw new Error('Invalid reset link or session expired');
+                }
+              }
+            } catch (error: any) {
+              toast.error(error.message || 'Failed to update password');
+            } finally {
+              setIsLoggingIn(false);
+            }
+          }} className="space-y-4">
+            <div className="space-y-4">
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input
+                  type="password"
+                  required
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="New password"
+                  className={cn(
+                    "w-full pl-12 pr-4 py-3.5 rounded-xl border transition-all focus:ring-2 focus:ring-indigo-500/50 outline-none text-sm",
+                    theme === 'dark' ? "bg-white/5 border-white/10 text-white placeholder-gray-500" : "bg-white border-gray-200 text-gray-900 placeholder-gray-400"
+                  )}
+                />
+              </div>
+
+              <div className="relative">
+                <Check className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input
+                  type="password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                  className={cn(
+                    "w-full pl-12 pr-4 py-3.5 rounded-xl border transition-all focus:ring-2 focus:ring-indigo-500/50 outline-none text-sm",
+                    theme === 'dark' ? "bg-white/5 border-white/10 text-white placeholder-gray-500" : "bg-white border-gray-200 text-gray-900 placeholder-gray-400"
+                  )}
+                />
+              </div>
+
+              <PasswordStrengthIndicator password={newPassword} theme={theme} />
+            </div>
+            
+            <button
+              type="submit"
+              disabled={isLoggingIn || !newPassword || newPassword !== confirmPassword}
+              className="w-full py-4 bg-brand text-white rounded-xl font-bold hover:bg-brand-hover transition-all shadow-lg shadow-brand/20 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isLoggingIn ? <Loader2 className="animate-spin" size={18} /> : null}
+              <span>Update Password</span>
+            </button>
+            
+            <div className="text-center mt-6">
+              <button
+                type="button"
+                onClick={() => {
+                  window.history.replaceState(null, '', '/login');
+                  window.location.reload();
+                }}
+                className="text-sm text-indigo-600 hover:text-indigo-500 font-medium"
+              >
+                Back to Login
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   if (!user) {
     return (
       <LandingPage 
@@ -1095,97 +1238,6 @@ function AppContent() {
     );
   }
 
-  if (isUpdatePasswordPage) {
-    return (
-      <div className={cn(
-        "min-h-screen flex items-center justify-center p-6 transition-colors duration-500",
-        theme === 'dark' ? "bg-[#050505] text-gray-100" : "bg-[#fcfcfc] text-gray-900"
-      )}>
-        <Toaster position="bottom-center" />
-        <div className={cn(
-          "w-full max-w-md p-8 rounded-[32px] border shadow-2xl relative overflow-hidden",
-          theme === 'dark' ? "bg-[#0a0a0a] border-white/10" : "bg-white border-gray-200"
-        )}>
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-[#6366f1] to-[#8b5cf6] rounded-2xl flex items-center justify-center text-white mx-auto mb-6 shadow-lg shadow-indigo-500/30">
-              <Lock size={32} />
-            </div>
-            <h3 className="text-2xl font-bold mb-2">Update Password</h3>
-            <p className="text-gray-500 text-sm">
-              Enter your new password below.
-            </p>
-          </div>
-          
-          <form onSubmit={async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.currentTarget);
-            const newPassword = formData.get('password') as string;
-            
-            if (!newPassword) {
-              toast.error('Please enter a new password');
-              return;
-            }
-            
-            setIsLoggingIn(true);
-            try {
-              const urlParams = new URLSearchParams(window.location.search);
-              const token = urlParams.get('token');
-              
-              if (token) {
-                // Local reset
-                await apiClient('/api/auth/update-password', {
-                  method: 'POST',
-                  body: JSON.stringify({ token, password: newPassword }),
-                  showToast: false
-                });
-                toast.success('Password updated successfully! Please log in.');
-                setTimeout(() => {
-                  window.history.replaceState(null, '', '/login');
-                  window.location.reload();
-                }, 1500);
-              } else {
-                // Supabase reset
-                const { error } = await supabase.auth.updateUser({ password: newPassword });
-                if (error) throw error;
-                toast.success('Password updated successfully!');
-                setTimeout(() => {
-                  window.history.replaceState(null, '', '/');
-                  window.location.reload();
-                }, 1500);
-              }
-            } catch (error: any) {
-              toast.error(error.message || 'Failed to update password');
-            } finally {
-              setIsLoggingIn(false);
-            }
-          }} className="space-y-4">
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input
-                type="password"
-                name="password"
-                placeholder="New password"
-                className={cn(
-                  "w-full pl-12 pr-4 py-3.5 rounded-xl border transition-all focus:ring-2 focus:ring-indigo-500/50 outline-none text-sm",
-                  theme === 'dark' ? "bg-white/5 border-white/10 text-white placeholder-gray-500" : "bg-white border-gray-200 text-gray-900 placeholder-gray-400"
-                )}
-              />
-            </div>
-            
-            <button
-              type="submit"
-              disabled={isLoggingIn}
-              className="w-full py-3.5 bg-gradient-to-r from-[#5a67d8] to-[#4c51bf] hover:opacity-90 text-white font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 disabled:opacity-50 mt-2"
-            >
-              {isLoggingIn ? <Loader2 className="animate-spin" size={18} /> : null}
-              <span>Update Password</span>
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
   if (isExpiredPage || isNotFoundPage) {
     return (
       <div className={cn(
@@ -1238,6 +1290,28 @@ function AppContent() {
       
 
 
+
+        {user && !user.emailVerified && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-between gap-4"
+          >
+            <div className="flex items-center gap-3">
+              <AlertCircle size={20} />
+              <div>
+                <p className="text-sm font-bold">Please verify your email address.</p>
+                <p className="text-xs opacity-80">Check your inbox for a verification link. You may need to refresh the page after verifying.</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => handleResendVerification(user.email || '')}
+              className="px-4 py-2 bg-amber-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-amber-600 transition-colors shrink-0"
+            >
+              Resend Email
+            </button>
+          </motion.div>
+        )}
 
         {user && user.status === 'inactive' && (
           <motion.div 
@@ -1731,7 +1805,7 @@ function AppContent() {
                         <tbody className="divide-y dark:divide-white/5">
                           {bulkUrls.map((bUrl, i) => (
                             <tr 
-                              key={i}
+                              key={`${bUrl}-${i}`}
                               className={cn(
                                 "transition-colors group",
                                 theme === 'dark' ? "hover:bg-white/5" : "hover:bg-gray-50"
@@ -1813,12 +1887,32 @@ function AppContent() {
               onClear={() => setIsClearHistoryModalOpen(true)}
               openShareModal={openShareModal}
               openQrModal={openQrModal}
+              onItemClick={(item) => {
+                setSelectedLink(item);
+                setIsLinkDetailsModalOpen(true);
+              }}
+            />
+
+            {/* Link Details Modal */}
+            <LinkDetailsModal 
+              item={selectedLink}
+              isOpen={isLinkDetailsModalOpen}
+              onClose={() => setIsLinkDetailsModalOpen(false)}
+              theme={theme}
+              onDelete={deleteFromHistory}
+              onUpdate={handleUpdateLink}
             />
 
             {/* Clear History Modal */}
-            <AnimatePresence>
-              {isClearHistoryModalOpen && <ClearHistoryModal />}
-            </AnimatePresence>
+            <ClearHistoryModal 
+              isOpen={isClearHistoryModalOpen}
+              onClose={() => setIsClearHistoryModalOpen(false)}
+              onConfirm={async () => {
+                clearHistory();
+                setIsClearHistoryModalOpen(false);
+              }}
+              theme={theme}
+            />
           </>
         ) : view === 'analytics' ? (
           <AnalyticsView 
@@ -1880,16 +1974,7 @@ function AppContent() {
             onOpenFeedback={() => setIsFeedbackModalOpen(true)}
           />
         ) : view === 'admin' ? (
-          <AdminView theme={theme} />
-        ) : view === 'tasks' ? (
-          <TasksView 
-            theme={theme} 
-            user={user}
-            onUpgrade={() => {
-              setSelectedPlan({ id: 'pro', name: 'Professional', price: '$12' });
-              setIsPaymentModalOpen(true);
-            }}
-          />
+          <AdminView theme={theme} user={user} />
         ) : view === 'support' ? (
           <SupportView theme={theme} />
         ) : null}

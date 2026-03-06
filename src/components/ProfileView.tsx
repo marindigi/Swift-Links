@@ -4,19 +4,21 @@ import { Settings, Sparkles, Loader2, Trash2, Palette, Key, LogOut, Link2, Globe
 import { toast } from 'react-hot-toast';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { User, ApiKey } from '../types';
 import { ApiKeyManager } from './ApiKeyManager';
 import { DeleteAccountModal } from './DeleteAccountModal';
 import { PasswordStrengthIndicator } from './PasswordStrengthIndicator';
-import { supabase } from '../supabaseClient';
-
+import { updateEmail, updatePassword } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 import { apiClient } from '../lib/api';
+import { Copy, Calendar } from 'lucide-react';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 interface ProfileViewProps {
-  user: { id: string; email: string | null; name?: string | null; avatar_url?: string | null; createdAt?: string; plan?: string; pendingPlan?: string | null } | null;
+  user: User | null;
   theme: 'light' | 'dark';
   setTheme: (theme: 'light' | 'dark') => void;
   domains: { id: string; name: string }[];
@@ -25,7 +27,7 @@ interface ProfileViewProps {
   onLogout: () => void;
   onUpgrade: () => void;
   onUpdate: (user: any) => void;
-  apiKeys: any[];
+  apiKeys: ApiKey[];
   onGenerateApiKey: (name: string) => Promise<any>;
   onDeleteApiKey: (id: string) => Promise<void>;
   onOpenFeedback: () => void;
@@ -167,11 +169,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     e.preventDefault();
     setIsUpdating(true);
     try {
-      // Update email in Supabase if changed
-      if (email !== user?.email) {
-        const { error } = await supabase.auth.updateUser({ email });
-        if (error) throw error;
-        toast.success('Please check your new email for a confirmation link');
+      // Update email in Firebase if changed
+      if (email !== user?.email && auth.currentUser) {
+        try {
+          await updateEmail(auth.currentUser, email);
+          toast.success('Please check your new email for a confirmation link');
+        } catch (error: any) {
+          if (error.code === 'auth/requires-recent-login') {
+            toast.error('This operation requires recent authentication. Please log out and log in again.');
+            return;
+          }
+          throw error;
+        }
       }
 
       const updatedUser = await apiClient('/api/profile/update', {
@@ -193,15 +202,19 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     if (!newPassword) return;
     setIsChangingPassword(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
-
-      toast.success('Password changed successfully');
-      alert('Your password has been updated successfully.');
-      setCurrentPassword('');
-      setNewPassword('');
+      if (auth.currentUser) {
+        await updatePassword(auth.currentUser, newPassword);
+        toast.success('Password changed successfully');
+        alert('Your password has been updated successfully.');
+        setCurrentPassword('');
+        setNewPassword('');
+      }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to change password');
+      if (error.code === 'auth/requires-recent-login') {
+        toast.error('This operation requires recent authentication. Please log out and log in again.');
+      } else {
+        toast.error(error.message || 'Failed to change password');
+      }
     } finally {
       setIsChangingPassword(false);
     }
@@ -242,7 +255,29 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 {user?.status || 'active'}
               </span>
             </div>
-            <p className="text-gray-500">{email}</p>
+            <div className="flex flex-col gap-1 mt-1">
+              <p className="text-gray-500 text-sm">{email}</p>
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => {
+                    if (user?.id) {
+                      navigator.clipboard.writeText(user.id);
+                      toast.success('User ID copied!');
+                    }
+                  }}
+                  className="text-[10px] text-gray-400 hover:text-brand transition-colors flex items-center gap-1 font-mono uppercase tracking-widest"
+                >
+                  <Copy size={10} />
+                  ID: {user?.id?.substring(0, 8)}...
+                </button>
+                {user?.createdAt && (
+                  <span className="text-[10px] text-gray-400 flex items-center gap-1 font-mono uppercase tracking-widest">
+                    <Calendar size={10} />
+                    Joined: {new Date(user.createdAt).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">

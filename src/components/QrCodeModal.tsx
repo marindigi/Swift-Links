@@ -1,9 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Download, Palette, Image as ImageIcon, Settings2, Trash2, Upload } from 'lucide-react';
+import { X, Download, Palette, Image as ImageIcon, Settings2, Trash2, Upload, Loader2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { uploadFile, getSignedUrl, deleteFile } from '../lib/storage';
+import { auth } from '../lib/firebase';
+import { toast } from 'react-hot-toast';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -20,6 +23,8 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, onClose, url, 
   const [fgColor, setFgColor] = useState('#000000');
   const [bgColor, setBgColor] = useState('#ffffff');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [signedLogoUrl, setSignedLogoUrl] = useState<string | null>(null);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [logoSize, setLogoSize] = useState(40);
   const [activeTab, setActiveTab] = useState<'colors' | 'logo' | 'settings'>('colors');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -53,19 +58,49 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, onClose, url, 
     }
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setLogoUrl(event.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    setIsUploadingLogo(true);
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error('Authentication required');
+
+      // Extract ID from URL if possible
+      const urlId = url?.split('/').pop() || 'temp';
+
+      // Delete old logo if it exists
+      if (logoUrl) {
+        await deleteFile(logoUrl);
+      }
+
+      const path = await uploadFile({
+        featureName: 'qr-logos',
+        itemId: urlId,
+        file,
+        userId: user.uid
+      });
+
+      setLogoUrl(path);
+      const signedUrl = await getSignedUrl(path);
+      setSignedLogoUrl(signedUrl);
+      toast.success('Logo uploaded');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to upload logo');
+    } finally {
+      setIsUploadingLogo(false);
     }
   };
 
-  const removeLogo = () => {
+  const removeLogo = async () => {
+    if (logoUrl) {
+      try {
+        await deleteFile(logoUrl);
+      } catch (e) {}
+    }
     setLogoUrl(null);
+    setSignedLogoUrl(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -104,8 +139,8 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, onClose, url, 
                   includeMargin={true}
                   fgColor={fgColor}
                   bgColor={bgColor}
-                  imageSettings={logoUrl ? {
-                    src: logoUrl,
+                  imageSettings={signedLogoUrl ? {
+                    src: signedLogoUrl,
                     x: undefined,
                     y: undefined,
                     height: logoSize,
@@ -223,7 +258,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, onClose, url, 
                           theme === 'dark' ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-100"
                         )}>
                           <div className="flex items-center gap-3">
-                            <img src={logoUrl} alt="Logo" className="w-10 h-10 rounded-lg object-cover border border-white/10" />
+                            {signedLogoUrl && <img src={signedLogoUrl} alt="Logo" className="w-10 h-10 rounded-lg object-cover border border-white/10" />}
                             <span className="text-xs font-bold text-gray-500">Custom Logo Active</span>
                           </div>
                           <button 
@@ -236,15 +271,18 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, onClose, url, 
                       ) : (
                         <button
                           onClick={() => fileInputRef.current?.click()}
+                          disabled={isUploadingLogo}
                           className={cn(
                             "w-full py-8 rounded-3xl border-2 border-dashed flex flex-col items-center justify-center gap-3 transition-all group",
                             theme === 'dark' ? "border-white/10 hover:border-brand/50 hover:bg-brand/5" : "border-gray-200 hover:border-brand/50 hover:bg-brand/5"
                           )}
                         >
                           <div className="w-12 h-12 rounded-2xl bg-brand/10 text-brand flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <Upload size={24} />
+                            {isUploadingLogo ? <Loader2 className="animate-spin" size={24} /> : <Upload size={24} />}
                           </div>
-                          <span className="text-xs font-bold text-gray-500">Click to upload logo</span>
+                          <span className="text-xs font-bold text-gray-500">
+                            {isUploadingLogo ? 'Uploading...' : 'Click to upload logo'}
+                          </span>
                         </button>
                       )}
                       <input 
