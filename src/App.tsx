@@ -32,7 +32,7 @@ import { LandingPage } from './components/LandingPage';
 import { DomainManager } from './components/DomainManager';
 import { ApiKeyManager } from './components/ApiKeyManager';
 import { ProfileView } from './components/ProfileView';
-import { canManageLinks } from './lib/permissions';
+import { OnboardingTour } from './components/OnboardingTour';
 
 import { PaymentModal } from './components/PaymentModal';
 import { FeedbackModal } from './components/FeedbackModal';
@@ -183,6 +183,31 @@ function AppContent() {
 
   useEffect(() => {
     loadHistory();
+
+    // Global handler for unhandled promise rejections
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      event.preventDefault();
+      const reason = event.reason;
+      console.error('Unhandled Promise Rejection:', reason);
+      
+      // Log more details if possible
+      if (reason instanceof Error) {
+        console.error('Error stack:', reason.stack);
+      } else if (typeof reason === 'object' && reason !== null) {
+        console.error('Error object:', JSON.stringify(reason));
+      } else {
+        console.error('Error reason:', String(reason));
+      }
+      
+      // Only show toast if it's an error we haven't already handled
+      const message = reason?.message || (typeof reason === 'string' ? reason : String(reason));
+      if (!message.includes('aborted') && !message.includes('Canceled') && !message.includes('Unauthorized')) {
+        toast.error(`An unexpected error occurred: ${message.substring(0, 50)}`);
+      }
+    };
+
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    return () => window.removeEventListener('unhandledrejection', handleUnhandledRejection);
   }, []);
 
   const refreshUserData = async (firebaseUser: any) => {
@@ -1243,15 +1268,17 @@ function AppContent() {
   }
 
   return (
-    <DashboardLayout
-      view={view}
-      setView={setView}
-      theme={theme}
-      setTheme={setTheme}
-      user={user}
-      onLogout={handleLogout}
-      onFetchAnalytics={fetchAnalytics}
-    >
+    <>
+      <OnboardingTour theme={theme} />
+      <DashboardLayout
+        view={view}
+        setView={setView}
+        theme={theme}
+        setTheme={setTheme}
+        user={user}
+        onLogout={handleLogout}
+        onFetchAnalytics={fetchAnalytics}
+      >
       <Toaster position="bottom-center" />
 
 
@@ -1397,7 +1424,7 @@ function AppContent() {
           </div>
         )}
 
-        {view === 'home' && user && canManageLinks(user.role) && (
+        {view === 'home' ? (
           <>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -1627,7 +1654,6 @@ function AppContent() {
                 </div>
               </form>
             </motion.div>
-          </>)}
 
             {/* Result Section */}
             <AnimatePresence>
@@ -1899,7 +1925,6 @@ function AppContent() {
             theme={theme}
             setView={setView}
             onRefresh={fetchAnalytics}
-            userRole={user?.role}
           />
         ) : view === 'domains' ? (
           <div className="space-y-6">
@@ -2006,9 +2031,8 @@ function AppContent() {
       <div className="fixed inset-0 pointer-events-none z-[-1] opacity-[0.03]" 
            style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
       <AnimatePresence>
-        <>
-          {isShareModalOpen && <ShareModal />}
-          <QrCodeModal 
+        {isShareModalOpen && <ShareModal />}
+        <QrCodeModal 
           isOpen={isQrModalOpen} 
           onClose={() => setIsQrModalOpen(false)} 
           url={qrUrl} 
@@ -2064,8 +2088,8 @@ function AppContent() {
             </motion.div>
           </div>
         )}
-        </>
       </AnimatePresence>
     </DashboardLayout>
+    </>
   );
 }

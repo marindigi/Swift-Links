@@ -516,7 +516,7 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, 
                     <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-2">Failed URLs ({bulkFailedUrls.length})</p>
                     <div className="max-h-32 overflow-y-auto custom-scrollbar space-y-1">
                       {bulkFailedUrls.map((item, idx) => (
-                        <div key={`${item.url}-${idx}`} className="flex items-center justify-between text-[11px] p-2 rounded-lg bg-red-500/5 border border-red-500/10">
+                        <div key={`failed-url-${item.url}-${idx}`} className="flex items-center justify-between text-[11px] p-2 rounded-lg bg-red-500/5 border border-red-500/10">
                           <span className="truncate text-gray-500 max-w-[70%]">{item.url}</span>
                           <span className="text-red-500 font-bold">{item.error}</span>
                         </div>

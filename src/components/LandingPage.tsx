@@ -419,7 +419,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                       <div className="absolute bottom-0 right-10 flex items-end gap-3 h-full pb-10">
                         {[40, 70, 45, 90, 65, 80].map((h, i) => (
                           <motion.div 
-                            key={`bar-${i}`}
+                            key={`bar-${feature.id}-${i}`}
                             initial={{ height: 0 }}
                             whileInView={{ height: `${h}%` }}
                             transition={{ duration: 1, delay: i * 0.1 }}

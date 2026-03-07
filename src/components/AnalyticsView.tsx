@@ -807,7 +807,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           </div>
           <div className="mt-6 space-y-3">
             {referrerData.slice(0, 5).map((ref, index) => (
-              <div key={ref.name} className="flex items-center justify-between text-xs">
+              <div key={`${ref.name}-${index}`} className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[(index + 4) % COLORS.length] }} />
                   <span className="font-mono truncate max-w-[120px]">{ref.name}</span>
@@ -995,7 +995,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           </h3>
           <div className="space-y-3">
             {recentClicks.map((click: any, idx: number) => (
-              <div key={click.id || `recent-click-${idx}`} className={cn(
+              <div key={click.id || `recent-click-${idx}-${click.timestamp}`} className={cn(
                 "flex items-center justify-between p-5 rounded-2xl border transition-all relative overflow-hidden group",
                 theme === 'dark' ? "bg-white/5 border-white/5" : "bg-gray-50 border-gray-100"
               )}>

@@ -6,7 +6,6 @@ import { User } from '../types';
 import { ExpirationBanner } from './ExpirationBanner';
 import { getSignedUrl } from '../lib/storage';
 import { NotificationCenter } from './NotificationCenter';
-import { canManageLinks, canViewAnalytics } from '../lib/permissions';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -44,9 +43,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     setSignedAvatarUrl(url);
   };
 
-  const hasLinkAccess = canManageLinks(user?.role);
-  const hasAnalyticsAccess = canViewAnalytics(user?.role);
-
   return (
     <div className={cn(
       "min-h-screen transition-colors duration-500 selection:bg-brand/30 font-sans overflow-x-hidden relative",
@@ -77,37 +73,33 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         </div>
 
         <nav className="flex-1 px-4 space-y-1.5">
-          {hasLinkAccess && (
-            <button
-              onClick={() => setView('home')}
-              className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:scale-[1.02]",
-                view === 'home' 
-                  ? "bg-brand text-white shadow-lg shadow-brand/20" 
-                  : "text-gray-400 hover:text-gray-100 hover:bg-white/5"
-              )}
-            >
-              <Link2 size={18} />
-              <span>Dashboard</span>
-            </button>
-          )}
-          {hasAnalyticsAccess && (
-            <button
-              onClick={() => {
-                setView('analytics');
-                onFetchAnalytics();
-              }}
-              className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:scale-[1.02]",
-                view === 'analytics' 
-                  ? "bg-brand text-white shadow-lg shadow-brand/20" 
-                  : "text-gray-400 hover:text-gray-100 hover:bg-white/5"
-              )}
-            >
-              <BarChart2 size={18} />
-              <span>Analytics</span>
-            </button>
-          )}
+          <button
+            onClick={() => setView('home')}
+            className={cn(
+              "tour-shortener w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:scale-[1.02]",
+              view === 'home' 
+                ? "bg-brand text-white shadow-lg shadow-brand/20" 
+                : "text-gray-400 hover:text-gray-100 hover:bg-white/5"
+            )}
+          >
+            <Link2 size={18} />
+            <span>Dashboard</span>
+          </button>
+          <button
+            onClick={() => {
+              setView('analytics');
+              onFetchAnalytics();
+            }}
+            className={cn(
+              "tour-analytics w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:scale-[1.02]",
+              view === 'analytics' 
+                ? "bg-brand text-white shadow-lg shadow-brand/20" 
+                : "text-gray-400 hover:text-gray-100 hover:bg-white/5"
+            )}
+          >
+            <BarChart2 size={18} />
+            <span>Analytics</span>
+          </button>
           <button
             onClick={() => setView('support')}
             className={cn(
@@ -126,7 +118,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           <button
             onClick={() => setView('domains')}
             className={cn(
-              "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:scale-[1.02]",
+              "tour-custom-domains w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:scale-[1.02]",
               view === 'domains' 
                 ? "bg-brand text-white shadow-lg shadow-brand/20" 
                 : "text-gray-400 hover:text-gray-100 hover:bg-white/5"
@@ -191,33 +183,29 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         "fixed bottom-0 left-0 right-0 z-50 border-t backdrop-blur-xl lg:hidden flex items-center gap-4 px-4 py-3 overflow-x-auto no-scrollbar",
         theme === 'dark' ? "bg-[#050505]/90 border-white/5" : "bg-white/90 border-gray-200"
       )}>
-        {hasLinkAccess && (
-          <button
-            onClick={() => setView('home')}
-            className={cn(
-              "flex flex-col items-center gap-1 min-w-[60px] px-2 py-1 rounded-xl transition-all shrink-0",
-              view === 'home' ? "text-brand" : "text-gray-500"
-            )}
-          >
-            <Link2 size={20} />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Home</span>
-          </button>
-        )}
-        {hasAnalyticsAccess && (
-          <button
-            onClick={() => {
-              setView('analytics');
-              onFetchAnalytics();
-            }}
-            className={cn(
-              "flex flex-col items-center gap-1 min-w-[60px] px-2 py-1 rounded-xl transition-all shrink-0",
-              view === 'analytics' ? "text-brand" : "text-gray-500"
-            )}
-          >
-            <BarChart2 size={20} />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Stats</span>
-          </button>
-        )}
+        <button
+          onClick={() => setView('home')}
+          className={cn(
+            "flex flex-col items-center gap-1 min-w-[60px] px-2 py-1 rounded-xl transition-all shrink-0",
+            view === 'home' ? "text-brand" : "text-gray-500"
+          )}
+        >
+          <Link2 size={20} />
+          <span className="text-[10px] font-bold uppercase tracking-wider">Home</span>
+        </button>
+        <button
+          onClick={() => {
+            setView('analytics');
+            onFetchAnalytics();
+          }}
+          className={cn(
+            "flex flex-col items-center gap-1 min-w-[60px] px-2 py-1 rounded-xl transition-all shrink-0",
+            view === 'analytics' ? "text-brand" : "text-gray-500"
+          )}
+        >
+          <BarChart2 size={20} />
+          <span className="text-[10px] font-bold uppercase tracking-wider">Stats</span>
+        </button>
         <button
           onClick={() => setView('domains')}
           className={cn(

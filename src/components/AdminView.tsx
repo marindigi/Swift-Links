@@ -383,6 +383,34 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
     }
   };
 
+  const handleUpdateRole = async (userId: string, role: string) => {
+    try {
+      await apiClient(`/api/admin/users/${userId}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role }),
+      });
+      toast.success('Role updated successfully');
+      fetchUsers();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update role');
+    }
+  };
+
+  const handleUpdateStatus = async (userId: string, status: string) => {
+    try {
+      await apiClient(`/api/admin/users/${userId}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      toast.success('Status updated successfully');
+      fetchUsers();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update status');
+    }
+  };
+
   const handleApprovePlan = async (user: UserData) => {
     if (!user.pendingPlan) return;
     
@@ -622,7 +650,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
             <tbody className={cn("divide-y", theme === 'dark' ? "divide-white/5" : "divide-gray-100")}>
               {tabLoading['users'] ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i}>
+                  <tr key={`skeleton-${i}`}>
                     <td colSpan={10} className="px-6 py-4">
                       <Skeleton className="h-8 w-full" theme={theme} />
                     </td>
@@ -688,16 +716,22 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={cn(
-                        "px-2 py-1 rounded-lg text-xs font-bold uppercase tracking-wider",
-                        user.role === 'admin' 
-                          ? "bg-purple-500/10 text-purple-500" 
-                          : user.role === 'editor'
-                            ? "bg-blue-500/10 text-blue-500"
-                            : "bg-gray-500/10 text-gray-500"
-                      )}>
-                        {user.role}
-                      </span>
+                      <select
+                        value={user.role}
+                        onChange={(e) => handleUpdateRole(user.id, e.target.value)}
+                        className={cn(
+                          "px-2 py-1 rounded-lg text-xs font-bold uppercase tracking-wider border-none cursor-pointer focus:ring-0",
+                          user.role === 'admin' 
+                            ? "bg-purple-500/10 text-purple-500" 
+                            : user.role === 'editor'
+                              ? "bg-blue-500/10 text-blue-500"
+                              : "bg-gray-500/10 text-gray-500"
+                        )}
+                      >
+                        <option value="admin">Admin</option>
+                        <option value="editor">Editor</option>
+                        <option value="viewer">Viewer</option>
+                      </select>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col gap-1">
@@ -725,16 +759,22 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={cn(
-                        "px-2 py-1 rounded-lg text-xs font-bold uppercase tracking-wider",
-                        user.status === 'active' 
-                          ? "bg-emerald-500/10 text-emerald-500" 
-                          : user.status === 'pending'
-                            ? "bg-amber-500/10 text-amber-500"
-                            : "bg-red-500/10 text-red-500"
-                      )}>
-                        {user.status || 'active'}
-                      </span>
+                      <select
+                        value={user.status}
+                        onChange={(e) => handleUpdateStatus(user.id, e.target.value)}
+                        className={cn(
+                          "px-2 py-1 rounded-lg text-xs font-bold uppercase tracking-wider border-none cursor-pointer focus:ring-0",
+                          user.status === 'active' 
+                            ? "bg-emerald-500/10 text-emerald-500" 
+                            : user.status === 'pending'
+                              ? "bg-amber-500/10 text-amber-500"
+                              : "bg-red-500/10 text-red-500"
+                        )}
+                      >
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="pending">Pending</option>
+                      </select>
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-xs text-gray-500 truncate max-w-[100px] block" title={user.message || ''}>
