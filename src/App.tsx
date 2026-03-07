@@ -192,10 +192,14 @@ function AppContent() {
       // Log more details if possible
       if (reason instanceof Error) {
         console.error('Error stack:', reason.stack);
+      } else if (typeof reason === 'object' && reason !== null) {
+        console.error('Error object:', JSON.stringify(reason));
+      } else {
+        console.error('Error reason:', String(reason));
       }
       
       // Only show toast if it's an error we haven't already handled
-      const message = reason?.message || String(reason);
+      const message = reason?.message || (typeof reason === 'string' ? reason : String(reason));
       if (!message.includes('aborted') && !message.includes('Canceled') && !message.includes('Unauthorized')) {
         toast.error(`An unexpected error occurred: ${message.substring(0, 50)}`);
       }
