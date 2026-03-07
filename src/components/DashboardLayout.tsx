@@ -9,8 +9,8 @@ import { NotificationCenter } from './NotificationCenter';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  view: string;
-  setView: (view: string) => void;
+  view: 'home' | 'analytics' | 'profile' | 'domains' | 'api-keys' | 'admin' | 'support';
+  setView: (view: 'home' | 'analytics' | 'profile' | 'domains' | 'api-keys' | 'admin' | 'support') => void;
   theme: 'light' | 'dark';
   setTheme: (theme: 'light' | 'dark') => void;
   user: User | null;
@@ -39,8 +39,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   }, [user?.avatar_url]);
 
   const loadSignedAvatar = async (path: string) => {
-    const url = await getSignedUrl(path);
-    setSignedAvatarUrl(url);
+    try {
+      const url = await getSignedUrl(path);
+      setSignedAvatarUrl(url);
+    } catch (error) {
+      console.error('Failed to load signed avatar:', error);
+      setSignedAvatarUrl(null);
+    }
   };
 
   return (

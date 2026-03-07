@@ -34,7 +34,7 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ theme }) => {
 
   const handleJoyrideCallback = (data: CallBackProps) => {
     const { status } = data;
-    if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
+    if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status as any)) {
       setRun(false);
       localStorage.setItem('hasSeenTour', 'true');
     }

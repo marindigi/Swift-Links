@@ -545,7 +545,7 @@ function AppContent() {
     toast.success(`Deleted ${ids.length} items from history`);
   };
 
-  const clearHistory = () => {
+  const clearHistory = async () => {
     saveHistory([]);
     setIsClearHistoryModalOpen(false);
     toast.success('History cleared');
@@ -1974,7 +1974,6 @@ function AppContent() {
             apiKeys={apiKeys}
             onGenerateApiKey={handleGenerateApiKey}
             onDeleteApiKey={handleDeleteApiKey}
-            onDismissMessage={handleDismissMessage}
             onOpenFeedback={() => setIsFeedbackModalOpen(true)}
           />
         ) : view === 'admin' ? (

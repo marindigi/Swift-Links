@@ -112,7 +112,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       setDefaultMethodId(methodId);
       toast.success('Default payment method updated');
     } catch (error) {
-      // Error handled by apiClient
+      console.error('Failed to set default payment method:', error);
     }
   };
 
@@ -123,7 +123,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       if (defaultMethodId === methodId) setDefaultMethodId(null);
       toast.success('Payment method removed');
     } catch (error) {
-      // Error handled by apiClient
+      console.error('Failed to remove payment method:', error);
     }
   };
 
@@ -132,7 +132,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       const { url } = await apiClient('/api/payments/create-setup-session', { method: 'POST' });
       window.location.href = url;
     } catch (error) {
-      // Error handled by apiClient
+      console.error('Failed to add payment method:', error);
     }
   };
 
@@ -157,7 +157,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       });
       toast.success('Notification settings updated');
     } catch (error) {
-      // Error handled by apiClient
+      console.error('Failed to update notification settings:', error);
       // Revert on error
       setNotifications(notifications);
     } finally {
@@ -175,8 +175,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       setLocalDomains([...localDomains, newDomain]);
       toast.success('Domain added successfully');
     } catch (error: any) {
-      // Error handled by apiClient
-      throw error;
+      console.error('Failed to add domain:', error);
     }
   };
 
@@ -186,8 +185,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       setLocalDomains(localDomains.filter(d => d.id !== id));
       toast.success('Domain removed');
     } catch (error: any) {
-      // Error handled by apiClient
-      throw error;
+      console.error('Failed to delete domain:', error);
     }
   };
 
@@ -197,8 +195,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       setLocalDomains(localDomains.map(d => d.id === id ? updatedDomain : d));
       toast.success('Domain verified');
     } catch (error: any) {
-      // Error handled by apiClient
-      throw error;
+      console.error('Failed to verify domain:', error);
     }
   };
 
@@ -238,7 +235,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       onUpdate(updatedUser);
       toast.success('Profile updated successfully');
     } catch (error: any) {
-      // Error handled by apiClient
+      console.error('Failed to update profile:', error);
     } finally {
       setIsUpdating(false);
     }
@@ -584,7 +581,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     "flex-1 px-4 py-3 rounded-xl border transition-all flex items-center justify-center gap-2",
                     theme === 'dark' 
                       ? "bg-brand text-white border-brand shadow-lg shadow-brand/20" 
-                      : (theme === 'dark' ? "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10" : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100")
+                      : (theme === 'light' ? "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10" : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100")
                   )}
                 >
                   Dark Mode
