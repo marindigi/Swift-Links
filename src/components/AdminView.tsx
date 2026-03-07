@@ -43,7 +43,7 @@ interface Setting {
 }
 
 export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
-  if (user?.role !== 'admin') {
+  if (!user || !['admin', 'editor', 'viewer'].includes(user.role)) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <Shield className="text-red-500 mb-4" size={48} />
@@ -52,7 +52,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
       </div>
     );
   }
-  const [activeTab, setActiveTab] = useState<'users' | 'settings' | 'content' | 'domains' | 'apiKeys' | 'history'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'settings' | 'content' | 'domains' | 'apiKeys' | 'history'>(
+    user?.role === 'admin' ? 'users' : user?.role === 'editor' ? 'content' : 'history'
+  );
   const [users, setUsers] = useState<UserData[]>([]);
   const [settings, setSettings] = useState<Setting[]>([]);
   const [features, setFeatures] = useState<LandingFeature[]>([]);
@@ -62,7 +64,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
   const [history, setHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<'createdAt' | 'email' | 'usage' | 'plan'>('createdAt');
+  const [sortBy, setSortBy] = useState<'createdAt' | 'email' | 'usage' | 'plan' | 'role' | 'status'>('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
@@ -459,6 +461,10 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
         comparison = (a.usage?.linksThisMonth || 0) - (b.usage?.linksThisMonth || 0);
       } else if (sortBy === 'plan') {
         comparison = (a.plan || '').localeCompare(b.plan || '');
+      } else if (sortBy === 'role') {
+        comparison = (a.role || '').localeCompare(b.role || '');
+      } else if (sortBy === 'status') {
+        comparison = (a.status || '').localeCompare(b.status || '');
       }
       return sortOrder === 'desc' ? -comparison : comparison;
     });
@@ -490,7 +496,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
             { id: 'domains', label: 'Domains', icon: Globe },
             { id: 'apiKeys', label: 'API Keys', icon: Key },
             { id: 'history', label: 'History', icon: History }
-          ].map((tab) => (
+          ].filter(tab => {
+            if (user?.role === 'admin') return true;
+            if (user?.role === 'editor') return ['content', 'history'].includes(tab.id);
+            if (user?.role === 'viewer') return ['history'].includes(tab.id);
+            return false;
+          }).map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
@@ -528,7 +539,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
                 />
               </div>
               
-              {selectedUsers.length > 0 && (
+              {user?.role === 'admin' && selectedUsers.length > 0 && (
                 <button
                   onClick={handleBulkDelete}
                   disabled={isBulkDeleting}
@@ -578,14 +589,24 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
                     <ArrowUpDown size={10} />
                   </button>
                 </th>
-                <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">Role</th>
+                <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">
+                  <button onClick={() => toggleSort('role')} className="flex items-center gap-1 hover:text-brand transition-colors">
+                    Role
+                    <ArrowUpDown size={10} />
+                  </button>
+                </th>
                 <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">
                   <button onClick={() => toggleSort('plan')} className="flex items-center gap-1 hover:text-brand transition-colors">
                     Plan
                     <ArrowUpDown size={10} />
                   </button>
                 </th>
-                <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">Status</th>
+                <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">
+                  <button onClick={() => toggleSort('status')} className="flex items-center gap-1 hover:text-brand transition-colors">
+                    Status
+                    <ArrowUpDown size={10} />
+                  </button>
+                </th>
                 <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">Message</th>
                 <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">Expires At</th>
                 <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">
@@ -733,28 +754,30 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
                       {new Date(user.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => setEditingUser(user)}
-                          className={cn(
-                            "p-1.5 rounded-lg transition-colors",
-                            theme === 'dark' ? "hover:bg-white/10 text-gray-400 hover:text-white" : "hover:bg-gray-100 text-gray-500 hover:text-gray-900"
-                          )}
-                          title="Edit"
-                        >
-                          <Edit2 size={14} />
-                        </button>
-                        <button
-                          onClick={() => setUserToDelete(user)}
-                          className={cn(
-                            "p-1.5 rounded-lg transition-colors",
-                            theme === 'dark' ? "hover:bg-red-500/20 text-gray-400 hover:text-red-400" : "hover:bg-red-50 text-gray-500 hover:text-red-600"
-                          )}
-                          title="Delete"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
+                        {user?.role === 'admin' && (
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => setEditingUser(user)}
+                              className={cn(
+                                "p-1.5 rounded-lg transition-colors",
+                                theme === 'dark' ? "hover:bg-white/10 text-gray-400 hover:text-white" : "hover:bg-gray-100 text-gray-500 hover:text-gray-900"
+                              )}
+                              title="Edit"
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                            <button
+                              onClick={() => setUserToDelete(user)}
+                              className={cn(
+                                "p-1.5 rounded-lg transition-colors",
+                                theme === 'dark' ? "hover:bg-red-500/20 text-gray-400 hover:text-red-400" : "hover:bg-red-50 text-gray-500 hover:text-red-600"
+                              )}
+                              title="Delete"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        )}
                     </td>
                   </tr>
                 ))
@@ -822,13 +845,15 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
         <div className="space-y-8">
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-bold">Landing Page Features</h3>
-            <button 
-              onClick={() => handleUpdateFeature({ id: nanoid(), icon: 'Sparkles', title: 'New Feature', description: 'Description', displayOrder: features.length + 1 })}
-              className="px-4 py-2 bg-brand text-white rounded-xl text-xs font-bold hover:bg-brand-hover transition-all flex items-center gap-2"
-            >
-              <Plus size={14} />
-              Add Feature
-            </button>
+            {(user?.role === 'admin' || user?.role === 'editor') && (
+              <button 
+                onClick={() => handleUpdateFeature({ id: nanoid(), icon: 'Sparkles', title: 'New Feature', description: 'Description', displayOrder: features.length + 1 })}
+                className="px-4 py-2 bg-brand text-white rounded-xl text-xs font-bold hover:bg-brand-hover transition-all flex items-center gap-2"
+              >
+                <Plus size={14} />
+                Add Feature
+              </button>
+            )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {Array.isArray(features) && features.map((f) => (
@@ -849,12 +874,14 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
                       className="bg-transparent font-bold outline-none focus:ring-1 focus:ring-brand rounded px-1"
                     />
                   </div>
-                  <button 
-                    onClick={() => handleDeleteFeature(f.id)}
-                    className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  {(user?.role === 'admin' || user?.role === 'editor') && (
+                    <button 
+                      onClick={() => handleDeleteFeature(f.id)}
+                      className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
                 </div>
                 <textarea 
                   defaultValue={f.description}
@@ -898,13 +925,15 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
         <div className="space-y-8 mt-12 pt-12 border-t border-gray-100 dark:border-white/10">
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-bold">Landing Page FAQs</h3>
-            <button 
-              onClick={() => handleUpdateFaq({ id: nanoid(), question: 'New Question', answer: 'Answer', displayOrder: faqs.length + 1 })}
-              className="px-4 py-2 bg-brand text-white rounded-xl text-xs font-bold hover:bg-brand-hover transition-all flex items-center gap-2"
-            >
-              <Plus size={14} />
-              Add FAQ
-            </button>
+            {(user?.role === 'admin' || user?.role === 'editor') && (
+              <button 
+                onClick={() => handleUpdateFaq({ id: nanoid(), question: 'New Question', answer: 'Answer', displayOrder: faqs.length + 1 })}
+                className="px-4 py-2 bg-brand text-white rounded-xl text-xs font-bold hover:bg-brand-hover transition-all flex items-center gap-2"
+              >
+                <Plus size={14} />
+                Add FAQ
+              </button>
+            )}
           </div>
           <div className="space-y-4">
             {Array.isArray(faqs) && faqs.map((faq) => (
@@ -919,12 +948,14 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
                     onBlur={(e) => handleUpdateFaq({ ...faq, question: e.target.value })}
                     className="flex-1 bg-transparent font-bold outline-none focus:ring-1 focus:ring-brand rounded px-1"
                   />
-                  <button 
-                    onClick={() => handleDeleteFaq(faq.id)}
-                    className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl transition-all ml-4"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  {(user?.role === 'admin' || user?.role === 'editor') && (
+                    <button 
+                      onClick={() => handleDeleteFaq(faq.id)}
+                      className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl transition-all ml-4"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
                 </div>
                 <textarea 
                   defaultValue={faq.answer}
