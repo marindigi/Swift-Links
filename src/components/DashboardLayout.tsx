@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useState, useEffect } from 'react';
-import { Link2, BarChart2, Globe, Key, Shield, User as UserIcon, LogOut, Sun, Moon, MessageSquare, HardDrive } from 'lucide-react';
+import { Link2, BarChart2, Globe, Key, Shield, User as UserIcon, LogOut, Sun, Moon, MessageSquare } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { User } from '../types';
 import { ExpirationBanner } from './ExpirationBanner';
@@ -84,18 +84,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           >
             <Link2 size={18} />
             <span>Dashboard</span>
-          </button>
-          <button
-            onClick={() => setView('files')}
-            className={cn(
-              "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:scale-[1.02]",
-              view === 'files' 
-                ? "bg-brand text-white shadow-lg shadow-brand/20" 
-                : "text-gray-400 hover:text-gray-100 hover:bg-white/5"
-            )}
-          >
-            <HardDrive size={18} />
-            <span>My Files</span>
           </button>
           <button
             onClick={() => {
