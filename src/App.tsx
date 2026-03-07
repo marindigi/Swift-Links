@@ -182,38 +182,6 @@ function AppContent() {
 
   useEffect(() => {
     loadHistory();
-
-    // Global handler for unhandled promise rejections
-    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      event.preventDefault();
-      const reason = event.reason;
-      
-      let errorMessage = 'An unexpected error occurred.';
-      if (reason instanceof Error) {
-        errorMessage = reason.message;
-        console.error('Unhandled Promise Rejection:', reason.message, reason.stack);
-      } else {
-        errorMessage = String(reason);
-        console.error('Unhandled Promise Rejection:', reason);
-      }
-      
-      if (!errorMessage.includes('aborted') && !errorMessage.includes('Canceled') && !errorMessage.includes('Unauthorized')) {
-        toast.error(`Error: ${errorMessage.substring(0, 50)}`);
-      }
-    };
-
-    // Global handler for synchronous errors
-    const handleError = (event: ErrorEvent) => {
-      console.error('Global Error:', event.message, event.error);
-      toast.error(`Error: ${event.message.substring(0, 50)}`);
-    };
-
-    window.addEventListener('unhandledrejection', handleUnhandledRejection);
-    window.addEventListener('error', handleError);
-    return () => {
-      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
-      window.removeEventListener('error', handleError);
-    };
   }, []);
 
   const refreshUserData = async (firebaseUser: any) => {
