@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { apiClient } from '../lib/api';
+import { copyToClipboard } from '../lib/utils';
 import { nanoid } from 'nanoid';
 
 function cn(...inputs: ClassValue[]) {
@@ -206,13 +207,10 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, 
   };
 
   const copyBulkUrls = async () => {
-    try {
-      await navigator.clipboard.writeText(bulkUrls.join('\n'));
+    const success = await copyToClipboard(bulkUrls.join('\n'), 'All URLs copied!');
+    if (success) {
       setBulkCopied(true);
-      toast.success('All URLs copied!');
       setTimeout(() => setBulkCopied(false), 2000);
-    } catch (err) {
-      toast.error('Failed to copy');
     }
   };
 
@@ -228,14 +226,11 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, 
     toast.success('Download started');
   };
 
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
+  const handleCopyToClipboard = async (text: string) => {
+    const success = await copyToClipboard(text, 'Copied!');
+    if (success) {
       setCopied(true);
-      toast.success('Copied!');
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      toast.error('Failed to copy');
     }
   };
 
@@ -558,7 +553,7 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, 
               </div>
               <div className="flex items-center gap-3 w-full sm:w-auto">
                 <button
-                  onClick={() => copyToClipboard(shortUrl)}
+                  onClick={() => handleCopyToClipboard(shortUrl)}
                   className={cn(
                     "flex-1 sm:flex-none px-6 py-3.5 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 text-sm shadow-lg",
                     copied 

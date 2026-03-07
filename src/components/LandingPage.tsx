@@ -378,7 +378,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
             {isLoadingPublicData ? (
               [...Array(3)].map((_, i) => (
                 <div 
-                  key={i} 
+                  key={`skeleton-${i}`} 
                   className={cn(
                     "rounded-[32px] p-10 border animate-pulse",
                     i % 3 === 0 ? "md:col-span-2" : "",
@@ -419,7 +419,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                       <div className="absolute bottom-0 right-10 flex items-end gap-3 h-full pb-10">
                         {[40, 70, 45, 90, 65, 80].map((h, i) => (
                           <motion.div 
-                            key={i}
+                            key={`bar-${i}`}
                             initial={{ height: 0 }}
                             whileInView={{ height: `${h}%` }}
                             transition={{ duration: 1, delay: i * 0.1 }}
@@ -456,7 +456,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                     <div className="absolute bottom-0 right-10 flex items-end gap-3 h-full pb-10">
                       {[40, 70, 45, 90, 65, 80].map((h, i) => (
                         <motion.div 
-                          key={i}
+                          key={`bar2-${i}`}
                           initial={{ height: 0 }}
                           whileInView={{ height: `${h}%` }}
                           transition={{ duration: 1, delay: i * 0.1 }}
@@ -833,7 +833,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
           <div className="space-y-4">
             {isLoadingPublicData ? (
               [...Array(3)].map((_, i) => (
-                <div key={i} className={cn(
+                <div key={`faq-skeleton-${i}`} className={cn(
                   "h-16 rounded-2xl border animate-pulse",
                   theme === 'dark' ? "bg-[#111111] border-white/5" : "bg-white border-gray-200"
                 )} />

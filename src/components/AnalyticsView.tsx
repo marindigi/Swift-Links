@@ -811,8 +811,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
             Browsers
           </h3>
           <div className="space-y-5">
-            {browserData.map((item) => (
-              <div key={`browser-${item.name}`} className="space-y-2">
+            {browserData.map((item, idx) => (
+              <div key={`browser-${item.name}-${idx}`} className="space-y-2">
                 <div className="flex justify-between text-[11px] font-bold">
                   <div className="flex items-center gap-2">
                     {getBrowserIcon(item.name)}
@@ -845,8 +845,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
             Operating Systems
           </h3>
           <div className="space-y-5">
-            {osData.map((item) => (
-              <div key={`os-${item.name}`} className="space-y-2">
+            {osData.map((item, idx) => (
+              <div key={`os-${item.name}-${idx}`} className="space-y-2">
                 <div className="flex justify-between text-[11px] font-bold">
                   <div className="flex items-center gap-2">
                     {getOSIcon(item.name)}
@@ -879,8 +879,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
             Device Types
           </h3>
           <div className="space-y-5">
-            {deviceData.map((item) => (
-              <div key={`device-${item.name}`} className="space-y-2">
+            {deviceData.map((item, idx) => (
+              <div key={`device-${item.name}-${idx}`} className="space-y-2">
                 <div className="flex justify-between text-[11px] font-bold">
                   <div className="flex items-center gap-2">
                     {getDeviceIcon(item.name)}

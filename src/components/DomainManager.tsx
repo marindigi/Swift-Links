@@ -7,6 +7,7 @@ import { twMerge } from 'tailwind-merge';
 import { Domain } from '../types';
 
 import { toast } from 'react-hot-toast';
+import { copyToClipboard } from '../lib/utils';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -254,8 +255,7 @@ export const DomainManager: React.FC<DomainManagerProps> = ({
                            <button 
                              type="button"
                              onClick={() => {
-                               navigator.clipboard.writeText(domain.verificationToken || `${domain.id}-verification-string`);
-                               toast.success('Copied to clipboard!');
+                               copyToClipboard(domain.verificationToken || `${domain.id}-verification-string`, 'Copied to clipboard!');
                              }}
                              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-white"
                              title="Copy to clipboard"

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, AlertCircle, Copy, Check, Loader2, Terminal, Zap, Info } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import { toast } from 'react-hot-toast';
+import { copyToClipboard } from '../lib/utils';
 
 interface ErrorShortenerProps {
   theme: 'light' | 'dark';
@@ -66,16 +67,13 @@ export const ErrorShortener: React.FC<ErrorShortenerProps> = ({ theme, initialEr
     }
   };
 
-  const copyToClipboard = async () => {
+  const handleCopyToClipboard = async () => {
     if (!output) return;
     const text = `Summary: ${output.summary}\nExplanation: ${output.explanation}\nSolution: ${output.solution}`;
-    try {
-      await navigator.clipboard.writeText(text);
+    const success = await copyToClipboard(text, 'Copied to clipboard');
+    if (success) {
       setCopied(true);
-      toast.success('Copied to clipboard');
       setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      toast.error('Failed to copy');
     }
   };
 
@@ -147,7 +145,7 @@ export const ErrorShortener: React.FC<ErrorShortenerProps> = ({ theme, initialEr
                     Analysis Complete
                   </div>
                   <button
-                    onClick={copyToClipboard}
+                    onClick={handleCopyToClipboard}
                     className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
                   >
                     {copied ? <Check size={18} className="text-emerald-500" /> : <Copy size={18} />}

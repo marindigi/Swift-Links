@@ -11,6 +11,7 @@ import { PasswordStrengthIndicator } from './PasswordStrengthIndicator';
 import { updateEmail, updatePassword } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { apiClient } from '../lib/api';
+import { copyToClipboard } from '../lib/utils';
 import { Copy, Calendar } from 'lucide-react';
 
 function cn(...inputs: ClassValue[]) {
@@ -261,8 +262,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 <button 
                   onClick={() => {
                     if (user?.id) {
-                      navigator.clipboard.writeText(user.id);
-                      toast.success('User ID copied!');
+                      copyToClipboard(user.id, 'User ID copied!');
                     }
                   }}
                   className="text-[10px] text-gray-400 hover:text-brand transition-colors flex items-center gap-1 font-mono uppercase tracking-widest"

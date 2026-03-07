@@ -8,6 +8,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { HistoryItem } from '../types';
 import { Button } from './Button';
+import { copyToClipboard } from '../lib/utils';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -139,8 +140,7 @@ export const LinkDetailsModal: React.FC<LinkDetailsModalProps> = ({
                     <div className="flex items-center gap-2">
                       <button 
                         onClick={() => {
-                          navigator.clipboard.writeText(item.shortUrl);
-                          toast.success('Copied!');
+                          copyToClipboard(item.shortUrl, 'Copied!');
                         }}
                         className="p-1.5 rounded-lg hover:bg-brand/10 text-gray-400 hover:text-brand transition-all"
                       >

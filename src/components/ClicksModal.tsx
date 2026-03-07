@@ -13,8 +13,9 @@ interface ClicksModalProps {
 export const ClicksModal: React.FC<ClicksModalProps> = ({ isOpen, onClose, clicks, theme }) => {
   const uniqueClicks = React.useMemo(() => {
     if (!Array.isArray(clicks)) return [];
-    // Ensure each click has a stable ID for the key prop
-    return clicks.map((c, i) => ({ ...c, _stableId: c.id || `temp-${i}` }));
+    // Deduplicate by ID to prevent duplicate keys
+    const unique = Array.from(new Map(clicks.map((c, i) => [c.id || `temp-${i}`, c])).values());
+    return unique.map((c, i) => ({ ...c, _stableId: c.id || `temp-${i}` }));
   }, [clicks]);
 
   return (

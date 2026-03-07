@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { HistoryItem } from '../types';
+import { copyToClipboard } from '../lib/utils';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -223,10 +224,10 @@ export const HistoryList: React.FC<HistoryListProps> = ({
             </button>
           </div>
         )}
-        {uniqueFilteredHistory.map((item) => (
+        {uniqueFilteredHistory.map((item, index) => (
             <motion.div 
               layout
-              key={`history-${item.id}`}
+              key={`history-${item.id}-${index}`}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
@@ -377,12 +378,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                       </button>
                       <button
                         onClick={async () => {
-                          try {
-                            await navigator.clipboard.writeText(item.shortUrl);
-                            toast.success('Copied to clipboard!');
-                          } catch (error) {
-                            toast.error('Failed to copy');
-                          }
+                          await copyToClipboard(item.shortUrl, 'Copied to clipboard!');
                         }}
                         className={cn(
                           "p-2 rounded-lg transition-all",
@@ -459,12 +455,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                             const text = bulkViewMode === 'url' 
                               ? (item.bulkUrls?.join('\n') || '')
                               : (item.bulkUrls?.map(u => u.split('/').pop()).join('\n') || '');
-                            try {
-                              await navigator.clipboard.writeText(text);
-                              toast.success(`All ${bulkViewMode === 'url' ? 'URLs' : 'IDs'} copied!`);
-                            } catch (error) {
-                              toast.error('Failed to copy');
-                            }
+                            await copyToClipboard(text, `All ${bulkViewMode === 'url' ? 'URLs' : 'IDs'} copied!`);
                           }}
                           className="flex items-center gap-1 text-[9px] font-bold text-emerald-500 hover:text-emerald-400 transition-colors"
                         >
@@ -503,12 +494,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                             <div className="flex items-center gap-1 opacity-0 group-hover/bulk-item:opacity-100 transition-opacity">
                               <button
                                 onClick={async () => {
-                                  try {
-                                    await navigator.clipboard.writeText(bulkViewMode === 'url' ? bUrl : (bUrl.split('/').pop() || ''));
-                                    toast.success('Copied!');
-                                  } catch (error) {
-                                    toast.error('Failed to copy');
-                                  }
+                                  await copyToClipboard(bulkViewMode === 'url' ? bUrl : (bUrl.split('/').pop() || ''), 'Copied!');
                                 }}
                                 className="p-1 hover:text-emerald-500 transition-colors"
                               >

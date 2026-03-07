@@ -12,6 +12,7 @@ import {
 import { Toaster, toast } from 'react-hot-toast';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { copyToClipboard } from './lib/utils';
 import { 
   onAuthStateChanged, 
   signInWithEmailAndPassword, 
@@ -181,84 +182,102 @@ function AppContent() {
 
   useEffect(() => {
     loadHistory();
-    checkAuth().catch(console.error);
 
     // Global handler for unhandled promise rejections
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       event.preventDefault();
       const reason = event.reason;
-      console.error('Unhandled Promise Rejection:', reason);
       
-      // Log more details if possible
+      let errorMessage = 'An unexpected error occurred.';
       if (reason instanceof Error) {
-        console.error('Error stack:', reason.stack);
-      } else if (typeof reason === 'object' && reason !== null) {
-        console.error('Error object:', JSON.stringify(reason));
+        errorMessage = reason.message;
+        console.error('Unhandled Promise Rejection:', reason.message, reason.stack);
       } else {
-        console.error('Error reason:', String(reason));
+        errorMessage = String(reason);
+        console.error('Unhandled Promise Rejection:', reason);
       }
       
-      // Only show toast if it's an error we haven't already handled
-      const message = reason?.message || (typeof reason === 'string' ? reason : String(reason));
-      if (!message.includes('aborted') && !message.includes('Canceled') && !message.includes('Unauthorized')) {
-        toast.error(`An unexpected error occurred: ${message.substring(0, 50)}`);
+      if (!errorMessage.includes('aborted') && !errorMessage.includes('Canceled') && !errorMessage.includes('Unauthorized')) {
+        toast.error(`Error: ${errorMessage.substring(0, 50)}`);
       }
     };
 
+    // Global handler for synchronous errors
+    const handleError = (event: ErrorEvent) => {
+      console.error('Global Error:', event.message, event.error);
+      toast.error(`Error: ${event.message.substring(0, 50)}`);
+    };
+
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
-    return () => window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    window.addEventListener('error', handleError);
+    return () => {
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+      window.removeEventListener('error', handleError);
+    };
+  }, []);
+
+  const refreshUserData = async (firebaseUser: any) => {
+    try {
+      if (!firebaseUser) {
+        setUser(null);
+        setDomains([]);
+        setApiKeys([]);
+        setAnalyticsData(null);
+        if (window.location.pathname !== '/' && window.location.pathname !== '/login' && window.location.pathname !== '/expired' && window.location.pathname !== '/not-found' && window.location.pathname !== '/update-password') {
+          window.history.replaceState(null, '', '/login');
+        }
+      } else {
+        try {
+          const userData = await apiClient<User>('/api/auth/me', { showToast: false });
+          setUser({ ...userData, emailVerified: firebaseUser.emailVerified });
+          
+          fetchDomains();
+          fetchApiKeys();
+          fetchAnalytics();
+          
+          const pendingPlan = localStorage.getItem('pendingPlan');
+          const pendingInterval = localStorage.getItem('pendingInterval') as 'monthly' | 'yearly';
+          
+          if (pendingPlan && pendingPlan !== 'hobby' && userData.plan === 'free') {
+            localStorage.removeItem('pendingPlan');
+            localStorage.removeItem('pendingInterval');
+            handleUpgrade(pendingPlan, pendingInterval).catch(console.error);
+          }
+
+          if (userData.status === 'inactive') {
+            toast.error('Your account is currently inactive. Please contact admin support.', {
+              duration: 6000,
+              icon: '🔒'
+            });
+          }
+        } catch (e) {
+          console.error('Failed to fetch user profile on auth change:', e);
+          setUser({ id: firebaseUser.uid, email: firebaseUser.email || '', emailVerified: firebaseUser.emailVerified });
+        }
+
+        if (window.location.pathname === '/login') {
+          window.history.replaceState(null, '', '/');
+        }
+      }
+    } catch (error) {
+      console.error('Auth state change error:', error);
+    } finally {
+      setIsCheckingAuth(false);
+    }
+  };
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      refreshUserData(firebaseUser).catch(console.error);
+    });
+    return () => unsubscribe();
   }, []);
 
   const checkAuth = async () => {
-    onAuthStateChanged(auth, async (firebaseUser) => {
-      try {
-        if (!firebaseUser) {
-          setUser(null);
-          setDomains([]);
-          setApiKeys([]);
-          setAnalyticsData(null);
-          if (window.location.pathname !== '/' && window.location.pathname !== '/login' && window.location.pathname !== '/expired' && window.location.pathname !== '/not-found' && window.location.pathname !== '/update-password') {
-            window.history.replaceState(null, '', '/login');
-          }
-        } else {
-          try {
-            const userData = await apiClient<User>('/api/auth/me', { showToast: false });
-            setUser({ ...userData, emailVerified: firebaseUser.emailVerified });
-            
-            fetchDomains();
-            fetchApiKeys();
-            fetchAnalytics();
-            
-            const pendingPlan = localStorage.getItem('pendingPlan');
-            const pendingInterval = localStorage.getItem('pendingInterval') as 'monthly' | 'yearly';
-            
-            if (pendingPlan && pendingPlan !== 'hobby' && userData.plan === 'free') {
-              localStorage.removeItem('pendingPlan');
-              localStorage.removeItem('pendingInterval');
-              handleUpgrade(pendingPlan, pendingInterval);
-            }
-
-            if (userData.status === 'inactive') {
-              toast.error('Your account is currently inactive. Please contact admin support.', {
-                duration: 6000,
-                icon: '🔒'
-              });
-            }
-          } catch (e) {
-            console.error('Failed to fetch user profile on auth change:', e);
-            setUser({ id: firebaseUser.uid, email: firebaseUser.email || '', emailVerified: firebaseUser.emailVerified });
-          }
-
-          if (window.location.pathname === '/login') {
-            window.history.replaceState(null, '', '/');
-          }
-        }
-      } catch (error) {
-        console.error('Auth state change error:', error);
-      } finally {
-        setIsCheckingAuth(false);
-      }
-    });
+    const firebaseUser = auth.currentUser;
+    if (firebaseUser) {
+      await refreshUserData(firebaseUser);
+    }
   };
 
   // Safety timeout for auth check
@@ -843,25 +862,19 @@ function AppContent() {
     }
   };
 
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
+  const handleCopyToClipboard = async (text: string) => {
+    const success = await copyToClipboard(text);
+    if (success) {
       setCopied(true);
-      toast.success('Copied to clipboard!');
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      toast.error('Failed to copy');
     }
   };
 
-  const copyBulkUrls = async () => {
-    try {
-      await navigator.clipboard.writeText(bulkUrls.join('\n'));
+  const handleCopyBulkUrls = async () => {
+    const success = await copyToClipboard(bulkUrls.join('\n'), 'All URLs copied!');
+    if (success) {
       setBulkCopied(true);
-      toast.success('All URLs copied!');
       setTimeout(() => setBulkCopied(false), 2000);
-    } catch (err) {
-      toast.error('Failed to copy');
     }
   };
 
@@ -988,12 +1001,9 @@ function AppContent() {
             <button
               onClick={async () => {
                 if (shareUrl) {
-                  try {
-                    await navigator.clipboard.writeText(shareUrl);
-                    toast.success('Copied to clipboard!');
+                  const success = await copyToClipboard(shareUrl, 'Copied to clipboard!');
+                  if (success) {
                     setIsShareModalOpen(false);
-                  } catch (error) {
-                    toast.error('Failed to copy');
                   }
                 }
               }}
@@ -1675,7 +1685,7 @@ function AppContent() {
                     </div>
                     <div className="flex items-center gap-3 w-full md:w-auto">
                       <button
-                        onClick={() => copyToClipboard(shortUrl)}
+                        onClick={() => handleCopyToClipboard(shortUrl)}
                         className={cn(
                           "flex-1 md:flex-none px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2",
                           copied 
@@ -1756,7 +1766,7 @@ function AppContent() {
                           Clear
                         </button>
                         <button
-                          onClick={copyBulkUrls}
+                          onClick={handleCopyBulkUrls}
                           className={cn(
                             "px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all",
                             bulkCopied 
@@ -1808,7 +1818,7 @@ function AppContent() {
                         <tbody className="divide-y dark:divide-white/5">
                           {bulkUrls.map((bUrl, i) => (
                             <tr 
-                              key={`${bUrl}-${i}`}
+                              key={`bulk-url-${i}`}
                               className={cn(
                                 "transition-colors group",
                                 theme === 'dark' ? "hover:bg-white/5" : "hover:bg-gray-50"
@@ -1822,12 +1832,7 @@ function AppContent() {
                                 <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                   <button
                                     onClick={async () => {
-                                      try {
-                                        await navigator.clipboard.writeText(bUrl);
-                                        toast.success('Copied!');
-                                      } catch (error) {
-                                        toast.error('Failed to copy');
-                                      }
+                                      await copyToClipboard(bUrl, 'Copied!');
                                     }}
                                     className={cn(
                                       "p-1.5 rounded-lg transition-colors",

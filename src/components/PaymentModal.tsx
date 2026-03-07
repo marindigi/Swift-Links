@@ -60,7 +60,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onC
                     </div>
                     
                     <div className="space-y-4">
-                      {[
+                      { [
                         'Unlimited links',
                         'Advanced analytics',
                         'Custom domains (up to 5)',
@@ -68,8 +68,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onC
                         'Priority support',
                         'Password protection',
                         'Custom QR styling'
-                      ].map((feature, i) => (
-                        <div key={i} className="flex items-center gap-3 text-sm text-gray-500">
+                      ].map((feature) => (
+                        <div key={feature} className="flex items-center gap-3 text-sm text-gray-500">
                           <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
                             <CheckCircle2 size={12} className="text-emerald-500" />
                           </div>

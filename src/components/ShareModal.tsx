@@ -1,9 +1,9 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Share2, X, Copy, Twitter, Facebook, Mail } from 'lucide-react';
-import { toast } from 'react-hot-toast';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { copyToClipboard } from '../lib/utils';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -77,12 +77,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, shareUr
               )}>{shareUrl}</span>
               <button
                 onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(shareUrl);
-                    toast.success('Copied!');
-                  } catch (error) {
-                    toast.error('Failed to copy');
-                  }
+                  await copyToClipboard(shareUrl, 'Copied!');
                 }}
                 className={cn(
                   "p-2 rounded-lg transition-colors shrink-0",

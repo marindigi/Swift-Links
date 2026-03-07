@@ -6,6 +6,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import toast from 'react-hot-toast';
 import { ApiKey } from '../types';
+import { copyToClipboard } from '../lib/utils';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -63,23 +64,11 @@ export function ApiKeyManager({
     }
   };
 
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast.success('Copied to clipboard');
-    } catch (error) {
-      toast.error('Failed to copy to clipboard');
-    }
-  };
-
   const handleCopyKey = async (id: string, key: string) => {
-    try {
-      await navigator.clipboard.writeText(key);
+    const success = await copyToClipboard(key, 'Copied to clipboard');
+    if (success) {
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 2000);
-      toast.success('Copied to clipboard');
-    } catch (error) {
-      toast.error('Failed to copy to clipboard');
     }
   };
 

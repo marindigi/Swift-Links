@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { nanoid } from 'nanoid';
-import { Shield, Trash2, Search, User as UserIcon, Settings, Layout, Plus, ArrowUpDown, Edit2 } from 'lucide-react';
+import { Shield, Trash2, Search, User as UserIcon, Settings, Layout, Plus, ArrowUpDown, Edit2, Globe, Key, History } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { apiClient } from '../lib/api';
 import { clsx, type ClassValue } from 'clsx';
@@ -8,6 +8,9 @@ import { twMerge } from 'tailwind-merge';
 import { LandingFeature, LandingFaq, User as UserType } from '../types';
 import { DeleteUserModal } from './DeleteUserModal';
 import { EditUserModal } from './EditUserModal';
+import { DomainManager } from './DomainManager';
+import { ApiKeyManager } from './ApiKeyManager';
+import { HistoryList } from './HistoryList';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -49,11 +52,14 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
       </div>
     );
   }
-  const [activeTab, setActiveTab] = useState<'users' | 'settings' | 'content'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'settings' | 'content' | 'domains' | 'apiKeys' | 'history'>('users');
   const [users, setUsers] = useState<UserData[]>([]);
   const [settings, setSettings] = useState<Setting[]>([]);
   const [features, setFeatures] = useState<LandingFeature[]>([]);
   const [faqs, setFaqs] = useState<LandingFaq[]>([]);
+  const [domains, setDomains] = useState<any[]>([]);
+  const [apiKeys, setApiKeys] = useState<any[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'createdAt' | 'email' | 'usage' | 'plan'>('createdAt');
@@ -68,6 +74,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
     if (activeTab === 'users') fetchUsers();
     if (activeTab === 'settings') fetchSettings();
     if (activeTab === 'content') fetchContent();
+    if (activeTab === 'domains') fetchDomains();
+    if (activeTab === 'apiKeys') fetchApiKeys();
+    if (activeTab === 'history') fetchHistory();
   }, [activeTab]);
 
   const fetchUsers = async () => {
@@ -132,6 +141,147 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
       setFaqs([]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchDomains = async () => {
+    setIsLoading(true);
+    try {
+      const data = await apiClient<any[]>('/api/admin/domains');
+      setDomains(Array.isArray(data) ? data : []);
+    } catch (error) {
+      toast.error('Failed to fetch domains');
+      setDomains([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchApiKeys = async () => {
+    setIsLoading(true);
+    try {
+      const data = await apiClient<any[]>('/api/admin/keys');
+      setApiKeys(Array.isArray(data) ? data : []);
+    } catch (error) {
+      toast.error('Failed to fetch API keys');
+      setApiKeys([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchHistory = async () => {
+    setIsLoading(true);
+    try {
+      const data = await apiClient<any[]>('/api/admin/history');
+      setHistory(Array.isArray(data) ? data : []);
+    } catch (error) {
+      toast.error('Failed to fetch history');
+      setHistory([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAddDomain = async (name: string) => {
+    try {
+      await apiClient('/api/admin/domains', {
+        method: 'POST',
+        body: JSON.stringify({ name })
+      });
+      toast.success('Domain added');
+      fetchDomains();
+    } catch (error) {
+      toast.error('Failed to add domain');
+    }
+  };
+
+  const handleDeleteDomain = async (id: string) => {
+    try {
+      await apiClient(`/api/admin/domains/${id}`, {
+        method: 'DELETE'
+      });
+      toast.success('Domain deleted');
+      fetchDomains();
+    } catch (error) {
+      toast.error('Failed to delete domain');
+    }
+  };
+
+  const handleVerifyDomain = async (id: string) => {
+    try {
+      await apiClient(`/api/admin/domains/${id}/verify`, {
+        method: 'POST'
+      });
+      toast.success('Domain verified');
+      fetchDomains();
+    } catch (error) {
+      toast.error('Failed to verify domain');
+    }
+  };
+
+  const handleGenerateApiKey = async (name: string) => {
+    try {
+      const newKey = await apiClient<any>('/api/admin/keys', {
+        method: 'POST',
+        body: JSON.stringify({ name })
+      });
+      toast.success('API Key generated');
+      fetchApiKeys();
+      return newKey;
+    } catch (error) {
+      toast.error('Failed to generate API key');
+      throw error;
+    }
+  };
+
+  const handleDeleteApiKey = async (id: string) => {
+    try {
+      await apiClient(`/api/admin/keys/${id}`, {
+        method: 'DELETE'
+      });
+      toast.success('API Key deleted');
+      fetchApiKeys();
+    } catch (error) {
+      toast.error('Failed to delete API key');
+    }
+  };
+
+  const handleDeleteHistoryItem = async (id: string) => {
+    try {
+      await apiClient(`/api/admin/history/${id}`, {
+        method: 'DELETE'
+      });
+      toast.success('History item deleted');
+      fetchHistory();
+    } catch (error) {
+      toast.error('Failed to delete history item');
+    }
+  };
+
+  const handleBulkDeleteHistory = async (ids: string[]) => {
+    try {
+      await apiClient('/api/admin/history/bulk-delete', {
+        method: 'POST',
+        body: JSON.stringify({ ids })
+      });
+      toast.success('History items deleted');
+      fetchHistory();
+    } catch (error) {
+      toast.error('Failed to delete history items');
+    }
+  };
+
+  const handleClearHistory = async () => {
+    if (!window.confirm('Are you sure you want to clear all history?')) return;
+    try {
+      await apiClient('/api/admin/history/clear', {
+        method: 'POST'
+      });
+      toast.success('History cleared');
+      fetchHistory();
+    } catch (error) {
+      toast.error('Failed to clear history');
     }
   };
 
@@ -336,7 +486,10 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
           {[
             { id: 'users', label: 'Users', icon: UserIcon },
             { id: 'settings', label: 'Settings', icon: Settings },
-            { id: 'content', label: 'Content', icon: Layout }
+            { id: 'content', label: 'Content', icon: Layout },
+            { id: 'domains', label: 'Domains', icon: Globe },
+            { id: 'apiKeys', label: 'API Keys', icon: Key },
+            { id: 'history', label: 'History', icon: History }
           ].map((tab) => (
             <button
               key={tab.id}
@@ -458,8 +611,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user) => (
-                  <tr key={user.id} className={cn(
+                filteredUsers.map((user, index) => (
+                  <tr key={`${user.id}-${index}`} className={cn(
                     "transition-colors",
                     theme === 'dark' ? "hover:bg-white/5" : "hover:bg-gray-50/50"
                   )}>
@@ -613,8 +766,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
       </>
       ) : activeTab === 'settings' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {Array.isArray(settings) && settings.map((s) => (
-            <div key={s.key} className={cn(
+          {Array.isArray(settings) && settings.map((s, index) => (
+            <div key={`${s.key}-${index}`} className={cn(
               "p-6 rounded-3xl border",
               theme === 'dark' ? "bg-zinc-900 border-zinc-800" : "bg-white border-gray-100 shadow-sm"
             )}>
@@ -635,6 +788,35 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
             </div>
           ))}
         </div>
+      ) : activeTab === 'domains' ? (
+        <DomainManager
+          isOpen={true}
+          onClose={() => {}}
+          domains={domains}
+          onAdd={handleAddDomain}
+          onDelete={handleDeleteDomain}
+          onVerify={handleVerifyDomain}
+          theme={theme}
+          standalone={true}
+        />
+      ) : activeTab === 'apiKeys' ? (
+        <ApiKeyManager
+          apiKeys={apiKeys}
+          onGenerate={handleGenerateApiKey}
+          onDelete={handleDeleteApiKey}
+          theme={theme}
+        />
+      ) : activeTab === 'history' ? (
+        <HistoryList
+          history={history}
+          theme={theme}
+          onDelete={handleDeleteHistoryItem}
+          onBulkDelete={handleBulkDeleteHistory}
+          onClear={handleClearHistory}
+          openShareModal={() => {}}
+          openQrModal={() => {}}
+          onItemClick={() => {}}
+        />
       ) : (
         <>
         <div className="space-y-8">
@@ -649,8 +831,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {Array.isArray(features) && features.map((f) => (
-              <div key={f.id} className={cn(
+            {Array.isArray(features) && features.map((f, index) => (
+              <div key={`${f.id}-${index}`} className={cn(
                 "p-6 rounded-3xl border",
                 theme === 'dark' ? "bg-zinc-900 border-zinc-800" : "bg-white border-gray-100 shadow-sm"
               )}>
@@ -725,8 +907,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
             </button>
           </div>
           <div className="space-y-4">
-            {Array.isArray(faqs) && faqs.map((faq) => (
-              <div key={faq.id} className={cn(
+            {Array.isArray(faqs) && faqs.map((faq, index) => (
+              <div key={`${faq.id}-${index}`} className={cn(
                 "p-6 rounded-3xl border",
                 theme === 'dark' ? "bg-zinc-900 border-zinc-800" : "bg-white border-gray-100 shadow-sm"
               )}>
