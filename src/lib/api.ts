@@ -61,15 +61,15 @@ export async function apiClient<T = any>(endpoint: string, options: ApiOptions =
       
       let userMsg = msg;
       if (response.status === 401) {
-        userMsg = 'Unauthorized. Please log in again.';
+        userMsg = 'Your session has expired. Please log in again.';
       } else if (response.status === 403) {
-        userMsg = 'Forbidden. You do not have permission to perform this action.';
+        userMsg = 'You do not have permission to perform this action. Please check your plan or contact support.';
       } else if (response.status === 404) {
-        userMsg = 'The requested resource was not found.';
+        userMsg = 'The requested resource was not found. Please check the URL or contact support.';
       } else if (response.status === 429) {
-        userMsg = 'Rate limit exceeded. Please try again later.';
+        userMsg = 'You have reached the rate limit. Please wait a moment and try again.';
       } else if (response.status >= 500) {
-        userMsg = 'Server error. Please try again later.';
+        userMsg = 'A server error occurred. Please try again later or contact support if the issue persists.';
       }
       throw new Error(userMsg);
     }

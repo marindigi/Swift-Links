@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Smartphone, Monitor, Globe } from 'lucide-react';
+import { X, Smartphone, Monitor, Globe, Tablet } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -65,7 +65,7 @@ export const ClicksModal: React.FC<ClicksModalProps> = ({ isOpen, onClose, click
                         {click.city && click.city !== 'Unknown' ? `${click.city}, ` : ''}{click.country || 'Unknown'}
                       </td>
                       <td className="py-4 flex items-center gap-2">
-                        {click.device === 'mobile' ? <Smartphone size={12} /> : <Monitor size={12} />}
+                        {click.device === 'mobile' ? <Smartphone size={12} /> : click.device === 'tablet' ? <Tablet size={12} /> : <Monitor size={12} />}
                         {click.device || 'desktop'}
                       </td>
                       <td className="py-4 flex items-center gap-2">

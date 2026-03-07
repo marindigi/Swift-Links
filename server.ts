@@ -1819,7 +1819,11 @@ const checkDomainLimit = (userId: string) => {
           const parser = new UAParser(ua);
           const browser = parser.getBrowser().name || 'Unknown';
           const os = parser.getOS().name || 'Unknown';
-          const device = parser.getDevice().type || 'desktop';
+          const deviceType = parser.getDevice().type;
+          let device = 'desktop';
+          if (deviceType === 'mobile') device = 'mobile';
+          else if (deviceType === 'tablet') device = 'tablet';
+          else if (deviceType === 'smarttv' || deviceType === 'console' || deviceType === 'wearable' || deviceType === 'embedded') device = 'desktop';
 
           // Log click event
           db.prepare("INSERT INTO clicks (urlId, userAgent, referer, country, city, browser, os, device) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(
@@ -1982,24 +1986,6 @@ const checkDomainLimit = (userId: string) => {
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to delete faq" });
-    }
-  });
-
-  app.get("/api/admin/domains", authenticate, requireAdmin, (_req, res) => {
-    try {
-      const domains = db.prepare("SELECT * FROM domains").all();
-      res.json(domains);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch domains" });
-    }
-  });
-
-  app.get("/api/admin/keys", authenticate, requireAdmin, (_req, res) => {
-    try {
-      const keys = db.prepare("SELECT * FROM apiKeys").all();
-      res.json(keys);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch API keys" });
     }
   });
 

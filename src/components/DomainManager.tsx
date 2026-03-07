@@ -237,44 +237,50 @@ export const DomainManager: React.FC<DomainManagerProps> = ({
                     "mt-4 p-3 rounded-xl text-xs space-y-2",
                     theme === 'dark' ? "bg-black/40 text-gray-400" : "bg-gray-50 text-gray-600"
                   )}>
-                    <p className="font-bold uppercase tracking-wider text-[10px] mb-2">Verification Required</p>
-                    <p>To verify ownership, please add the following DNS TXT record to your domain:</p>
-                    <div className="flex flex-col gap-1 mt-2 font-mono bg-black/10 dark:bg-white/5 p-2 rounded-lg">
-                      <div className="flex justify-between">
-                         <span className="opacity-70">Type:</span>
-                         <span>TXT</span>
+                      <div className="flex items-center gap-2 text-brand font-bold uppercase tracking-widest text-[10px]">
+                        <AlertCircle size={14} />
+                        Verification Required
                       </div>
-                      <div className="flex justify-between">
-                         <span className="opacity-70">Name:</span>
-                         <span className="truncate ml-2">@ or {domain.name}</span>
+                      <p className="text-xs leading-relaxed">
+                        To verify ownership of <strong>{domain.name}</strong>, add a new <strong>TXT</strong> record to your DNS settings.
+                      </p>
+                      <div className="font-mono bg-black/10 dark:bg-white/5 p-3 rounded-lg space-y-2">
+                        <div className="flex justify-between">
+                           <span className="opacity-70">Type:</span>
+                           <span className="font-bold">TXT</span>
+                        </div>
+                        <div className="flex justify-between">
+                           <span className="opacity-70">Name/Host:</span>
+                           <span className="font-bold">@</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                           <span className="opacity-70">Value:</span>
+                           <div className="flex items-center gap-2">
+                             <span className="truncate max-w-[120px] font-bold">{domain.verificationToken || `${domain.id}-verification-string`}</span>
+                             <button 
+                               type="button"
+                               onClick={() => {
+                                 copyToClipboard(domain.verificationToken || `${domain.id}-verification-string`, 'Copied to clipboard!');
+                               }}
+                               className="p-1.5 rounded-lg bg-brand/10 hover:bg-brand/20 transition-colors text-brand"
+                               title="Copy to clipboard"
+                             >
+                               <Copy size={12} />
+                             </button>
+                           </div>
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center">
-                         <span className="opacity-70">Value:</span>
-                         <div className="flex items-center gap-2">
-                           <span className="truncate max-w-[150px]">{domain.verificationToken || `${domain.id}-verification-string`}</span>
-                           <button 
-                             type="button"
-                             onClick={() => {
-                               copyToClipboard(domain.verificationToken || `${domain.id}-verification-string`, 'Copied to clipboard!');
-                             }}
-                             className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-white"
-                             title="Copy to clipboard"
-                           >
-                             <Copy size={12} />
-                           </button>
-                         </div>
-                      </div>
+                    <div className="text-[10px] opacity-70 leading-relaxed">
+                      <p><strong>Note:</strong> DNS propagation can take time. If verification fails, please wait a few minutes and try again.</p>
                     </div>
-                    <p className="mt-2 text-[10px] opacity-70">
-                      DNS propagation can take up to 24-48 hours, but usually happens within minutes.
-                    </p>
+                    
                     <Button
                       onClick={() => handleVerify(domain.id)}
                       isLoading={verifyingId === domain.id}
-                      className="mt-3 w-full"
+                      className="w-full"
                     >
                       <RefreshCw size={14} className={cn("mr-2", verifyingId === domain.id && "animate-spin")} />
-                      <span>Verify Domain Now</span>
+                      <span>{domain.status === 'failed' ? 'Retry Verification' : 'Verify Domain Now'}</span>
                     </Button>
                   </div>
                 )}

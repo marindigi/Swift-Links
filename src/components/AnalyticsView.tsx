@@ -5,6 +5,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { motion } from 'motion/react';
 import { ClicksModal } from './ClicksModal';
+import { WorldMap } from './WorldMap';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -210,6 +211,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     .sort((a: any, b: any) => b.value - a.value)
     .slice(0, 7);
 
+  const allCountryData = Object.entries(countryDist)
+    .map(([name, value]) => ({ name, value: value as number }));
+
   // Distribution by City
   const cityDist = (filteredClicks || []).reduce((acc: any, click: any) => {
     const city = click.city || 'Unknown';
@@ -288,12 +292,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     }
   };
 
-  const getBrowserIcon = (browser: string) => {
-    const b = browser.toLowerCase();
-    if (b.includes('chrome')) return <Globe size={14} />;
-    if (b.includes('safari')) return <Globe size={14} />;
-    if (b.includes('firefox')) return <Globe size={14} />;
-    if (b.includes('edge')) return <Globe size={14} />;
+  const getBrowserIcon = () => {
     return <Globe size={14} />;
   };
 
@@ -599,6 +598,24 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
         <div className="relative z-10">
           <div className="flex items-center justify-between mb-10">
             <h3 className="text-sm font-black uppercase tracking-[0.3em] flex items-center gap-3">
+              <Globe className="text-brand" size={18} />
+              Geographic Distribution
+            </h3>
+          </div>
+          <WorldMap data={allCountryData} theme={theme} />
+        </div>
+      </div>
+
+      <div className={cn(
+        "p-8 rounded-3xl border backdrop-blur-sm transition-all relative overflow-hidden",
+        theme === 'dark' ? "bg-[#0a0a0a] border-white/10" : "bg-white border-gray-200 shadow-sm"
+      )}>
+        {/* Decorative grid background */}
+        <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={{ backgroundImage: 'linear-gradient(to right, #888 1px, transparent 1px), linear-gradient(to bottom, #888 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+        
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-10">
+            <h3 className="text-sm font-black uppercase tracking-[0.3em] flex items-center gap-3">
               <History className="text-brand" size={18} />
               Temporal Click Distribution (Area)
             </h3>
@@ -785,14 +802,21 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                     fontFamily: 'monospace'
                   }}
                 />
-                <Legend 
-                  verticalAlign="bottom" 
-                  height={36} 
-                  iconType="circle"
-                  formatter={(value) => <span className="text-[9px] font-mono uppercase tracking-wider text-gray-500">{value}</span>}
-                />
               </PieChart>
             </ResponsiveContainer>
+          </div>
+          <div className="mt-6 space-y-3">
+            {referrerData.slice(0, 5).map((ref, index) => (
+              <div key={ref.name} className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[(index + 4) % COLORS.length] }} />
+                  <span className="font-mono truncate max-w-[120px]">{ref.name}</span>
+                </div>
+                <span className="font-bold font-mono">
+                  {((ref.value / totalClicksInView) * 100).toFixed(1)}%
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -815,7 +839,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
               <div key={`browser-${item.name}-${idx}`} className="space-y-2">
                 <div className="flex justify-between text-[11px] font-bold">
                   <div className="flex items-center gap-2">
-                    {getBrowserIcon(item.name)}
+                    {getBrowserIcon()}
                     <span className={theme === 'dark' ? "text-white" : "text-gray-900"}>{item.name}</span>
                   </div>
                   <span className="text-gray-500 font-mono">{item.value}</span>

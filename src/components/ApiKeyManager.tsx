@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Key, Plus, Trash2, Copy, Check } from 'lucide-react';
+import { Key, Plus, Trash2, Copy, Check, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { Button } from './Button';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -33,6 +33,7 @@ export function ApiKeyManager({
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,6 +50,16 @@ export function ApiKeyManager({
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const toggleKeyVisibility = (id: string) => {
+    const newHiddenKeys = new Set(hiddenKeys);
+    if (newHiddenKeys.has(id)) {
+      newHiddenKeys.delete(id);
+    } else {
+      newHiddenKeys.add(id);
+    }
+    setHiddenKeys(newHiddenKeys);
   };
 
   const handleDelete = async (id: string) => {
@@ -155,6 +166,16 @@ export function ApiKeyManager({
               theme === 'dark' ? "text-gray-500" : "text-gray-400"
             )}>Active Keys</h3>
             
+            <div className={cn(
+              "flex items-center gap-3 p-4 rounded-2xl border mb-6",
+              theme === 'dark' ? "bg-amber-500/10 border-amber-500/20 text-amber-500" : "bg-amber-50 border-amber-200 text-amber-800"
+            )}>
+              <AlertTriangle size={20} className="shrink-0" />
+              <p className="text-xs font-medium">
+                <strong>Security Warning:</strong> Your API keys are sensitive credentials. Store them securely, never share them publicly, and revoke them immediately if you suspect they have been compromised.
+              </p>
+            </div>
+            
             {apiKeys.length === 0 ? (
               <div className="text-center py-12 text-gray-500 italic border border-dashed rounded-2xl border-gray-700/50">
                 No API keys generated yet.
@@ -178,7 +199,7 @@ export function ApiKeyManager({
                         "text-[10px] px-2 py-0.5 rounded-full font-mono",
                         theme === 'dark' ? "bg-white/10 text-gray-400" : "bg-gray-100 text-gray-500"
                       )}>
-                        {apiKey.key ? `...${apiKey.key.slice(-4)}` : 'HIDDEN'}
+                        {hiddenKeys.has(apiKey.id) ? '••••••••••••••••' : (apiKey.key ? apiKey.key : 'HIDDEN')}
                       </span>
                     </div>
                     <div className={cn(
@@ -191,25 +212,35 @@ export function ApiKeyManager({
 
                   <div className="flex items-center gap-2 self-end sm:self-auto">
                     {apiKey.key && (
-                      <Button
-                        onClick={() => handleCopyKey(apiKey.id, apiKey.key)}
-                        variant="ghost"
-                        size="sm"
-                        className={cn(copiedId === apiKey.id && "text-emerald-500 hover:text-emerald-600")}
-                        title="Copy Key"
-                      >
-                        {copiedId === apiKey.id ? (
-                          <>
-                            <Check size={16} className="mr-1 text-emerald-500" />
-                            <span className="text-emerald-500">Copied!</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy size={16} className="mr-1" />
-                            <span>Copy</span>
-                          </>
-                        )}
-                      </Button>
+                      <>
+                        <Button
+                          onClick={() => toggleKeyVisibility(apiKey.id)}
+                          variant="ghost"
+                          size="sm"
+                          title={hiddenKeys.has(apiKey.id) ? "Show Key" : "Hide Key"}
+                        >
+                          {hiddenKeys.has(apiKey.id) ? <Eye size={16} /> : <EyeOff size={16} />}
+                        </Button>
+                        <Button
+                          onClick={() => handleCopyKey(apiKey.id, apiKey.key)}
+                          variant="ghost"
+                          size="sm"
+                          className={cn(copiedId === apiKey.id && "text-emerald-500 hover:text-emerald-600")}
+                          title="Copy Key"
+                        >
+                          {copiedId === apiKey.id ? (
+                            <>
+                              <Check size={16} className="mr-1 text-emerald-500" />
+                              <span className="text-emerald-500">Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy size={16} className="mr-1" />
+                              <span>Copy</span>
+                            </>
+                          )}
+                        </Button>
+                      </>
                     )}
                     {confirmDeleteId === apiKey.id ? (
                       <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">

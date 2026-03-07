@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Settings, Sparkles, Loader2, Trash2, Palette, Key, LogOut, Link2, Globe, CreditCard, CheckCircle, Plus, Bell, MessageSquare } from 'lucide-react';
+import { Skeleton } from './Skeleton';
 import { toast } from 'react-hot-toast';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { User, ApiKey } from '../types';
 import { ApiKeyManager } from './ApiKeyManager';
+import { DomainManager } from './DomainManager';
 import { DeleteAccountModal } from './DeleteAccountModal';
+import { Button } from './Button';
 import { PasswordStrengthIndicator } from './PasswordStrengthIndicator';
 import { updateEmail, updatePassword } from 'firebase/auth';
 import { auth } from '../lib/firebase';
@@ -60,12 +63,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   const [defaultMethodId, setDefaultMethodId] = useState<string | null>(null);
   const [isLoadingMethods, setIsLoadingMethods] = useState(false);
-  const [notifications, setNotifications] = useState({
-    notify_link_created: true,
-    notify_weekly_report: true,
-    notify_plan_expiry: true
+  const [notifications, setNotifications] = useState(user?.notificationSettings || {
+    linkCreation: true,
+    weeklyReports: true,
+    planExpiry: true
   });
   const [isUpdatingNotifications, setIsUpdatingNotifications] = useState(false);
+  const [isDomainManagerOpen, setIsDomainManagerOpen] = useState(false);
+  const [localDomains, setLocalDomains] = useState(domains);
+
+  React.useEffect(() => {
+    setLocalDomains(domains);
+  }, [domains]);
 
   React.useEffect(() => {
     fetchPaymentMethods();
@@ -103,7 +112,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       setDefaultMethodId(methodId);
       toast.success('Default payment method updated');
     } catch (error) {
-      toast.error('Failed to update default payment method');
+      // Error handled by apiClient
     }
   };
 
@@ -114,7 +123,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       if (defaultMethodId === methodId) setDefaultMethodId(null);
       toast.success('Payment method removed');
     } catch (error) {
-      toast.error('Failed to remove payment method');
+      // Error handled by apiClient
     }
   };
 
@@ -123,7 +132,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       const { url } = await apiClient('/api/payments/create-setup-session', { method: 'POST' });
       window.location.href = url;
     } catch (error) {
-      toast.error('Failed to initiate payment setup');
+      // Error handled by apiClient
     }
   };
 
@@ -148,11 +157,48 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       });
       toast.success('Notification settings updated');
     } catch (error) {
-      toast.error('Failed to update notification settings');
+      // Error handled by apiClient
       // Revert on error
       setNotifications(notifications);
     } finally {
       setIsUpdatingNotifications(false);
+    }
+  };
+
+  const handleAddDomain = async (name: string) => {
+    try {
+      const newDomain = await apiClient('/api/domains', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      setLocalDomains([...localDomains, newDomain]);
+      toast.success('Domain added successfully');
+    } catch (error: any) {
+      // Error handled by apiClient
+      throw error;
+    }
+  };
+
+  const handleDeleteDomain = async (id: string) => {
+    try {
+      await apiClient(`/api/domains/${id}`, { method: 'DELETE' });
+      setLocalDomains(localDomains.filter(d => d.id !== id));
+      toast.success('Domain removed');
+    } catch (error: any) {
+      // Error handled by apiClient
+      throw error;
+    }
+  };
+
+  const handleVerifyDomain = async (id: string) => {
+    try {
+      const updatedDomain = await apiClient(`/api/domains/${id}/verify`, { method: 'POST' });
+      setLocalDomains(localDomains.map(d => d.id === id ? updatedDomain : d));
+      toast.success('Domain verified');
+    } catch (error: any) {
+      // Error handled by apiClient
+      throw error;
     }
   };
 
@@ -192,7 +238,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       onUpdate(updatedUser);
       toast.success('Profile updated successfully');
     } catch (error: any) {
-      toast.error(error.message || 'Failed to update profile. Please try again.');
+      // Error handled by apiClient
     } finally {
       setIsUpdating(false);
     }
@@ -238,7 +284,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-2xl overflow-hidden bg-brand/10 border-2 border-brand/20 shrink-0 shadow-lg shadow-brand/10">
             <img 
-              src={avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name || email || 'User')}&backgroundColor=6366f1,4f46e5&textColor=ffffff`} 
+              src={avatarUrl && avatarUrl.trim() !== '' ? avatarUrl : `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name || email || 'User')}&backgroundColor=6366f1,4f46e5&textColor=ffffff`} 
               alt="Profile" 
               className="w-full h-full object-cover"
               referrerPolicy="no-referrer"
@@ -586,8 +632,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
 
           {isLoadingMethods ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="animate-spin text-brand" size={24} />
+            <div className="space-y-4">
+              <Skeleton className="h-16 w-full" theme={theme} />
+              <Skeleton className="h-16 w-full" theme={theme} />
             </div>
           ) : paymentMethods.length > 0 ? (
             <div className="space-y-4">
@@ -665,16 +712,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 <p className="text-[10px] text-gray-500 uppercase tracking-wider">Receive email when a new link is created</p>
               </div>
               <button
-                onClick={() => handleUpdateNotifications('notify_link_created', !notifications.notify_link_created)}
+                onClick={() => handleUpdateNotifications('linkCreation', !notifications.linkCreation)}
                 disabled={isUpdatingNotifications}
                 className={cn(
                   "w-12 h-6 rounded-full transition-all relative",
-                  notifications.notify_link_created ? "bg-brand" : (theme === 'dark' ? "bg-white/10" : "bg-gray-200")
+                  notifications.linkCreation ? "bg-brand" : (theme === 'dark' ? "bg-white/10" : "bg-gray-200")
                 )}
               >
                 <div className={cn(
                   "absolute top-1 w-4 h-4 rounded-full bg-white transition-all",
-                  notifications.notify_link_created ? "left-7" : "left-1"
+                  notifications.linkCreation ? "left-7" : "left-1"
                 )} />
               </button>
             </div>
@@ -685,16 +732,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 <p className="text-[10px] text-gray-500 uppercase tracking-wider">Get a summary of your link performance every Monday</p>
               </div>
               <button
-                onClick={() => handleUpdateNotifications('notify_weekly_report', !notifications.notify_weekly_report)}
+                onClick={() => handleUpdateNotifications('weeklyReports', !notifications.weeklyReports)}
                 disabled={isUpdatingNotifications}
                 className={cn(
                   "w-12 h-6 rounded-full transition-all relative",
-                  notifications.notify_weekly_report ? "bg-brand" : (theme === 'dark' ? "bg-white/10" : "bg-gray-200")
+                  notifications.weeklyReports ? "bg-brand" : (theme === 'dark' ? "bg-white/10" : "bg-gray-200")
                 )}
               >
                 <div className={cn(
                   "absolute top-1 w-4 h-4 rounded-full bg-white transition-all",
-                  notifications.notify_weekly_report ? "left-7" : "left-1"
+                  notifications.weeklyReports ? "left-7" : "left-1"
                 )} />
               </button>
             </div>
@@ -705,21 +752,45 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 <p className="text-[10px] text-gray-500 uppercase tracking-wider">Alerts when your subscription is about to expire</p>
               </div>
               <button
-                onClick={() => handleUpdateNotifications('notify_plan_expiry', !notifications.notify_plan_expiry)}
+                onClick={() => handleUpdateNotifications('planExpiry', !notifications.planExpiry)}
                 disabled={isUpdatingNotifications}
                 className={cn(
                   "w-12 h-6 rounded-full transition-all relative",
-                  notifications.notify_plan_expiry ? "bg-brand" : (theme === 'dark' ? "bg-white/10" : "bg-gray-200")
+                  notifications.planExpiry ? "bg-brand" : (theme === 'dark' ? "bg-white/10" : "bg-gray-200")
                 )}
               >
                 <div className={cn(
                   "absolute top-1 w-4 h-4 rounded-full bg-white transition-all",
-                  notifications.notify_plan_expiry ? "left-7" : "left-1"
+                  notifications.planExpiry ? "left-7" : "left-1"
                 )} />
               </button>
             </div>
           </div>
         </div>
+
+        <div className={cn(
+          "p-8 rounded-3xl border backdrop-blur-sm transition-all",
+          theme === 'dark' ? "bg-[#0a0a0a] border-white/10" : "bg-white border-gray-200 shadow-sm"
+        )}>
+          <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+            <Globe size={20} className="text-brand" />
+            Custom Domains
+          </h3>
+          <p className="text-sm text-gray-500 mb-6">Manage your custom domains for branded links.</p>
+          <Button onClick={() => setIsDomainManagerOpen(true)}>
+            Manage Domains
+          </Button>
+        </div>
+
+        <DomainManager
+          isOpen={isDomainManagerOpen}
+          onClose={() => setIsDomainManagerOpen(false)}
+          domains={localDomains}
+          onAdd={handleAddDomain}
+          onDelete={handleDeleteDomain}
+          onVerify={handleVerifyDomain}
+          theme={theme}
+        />
 
         <div className={cn(
           "p-8 rounded-3xl border backdrop-blur-sm transition-all",

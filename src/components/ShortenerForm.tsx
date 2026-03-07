@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Link2, ArrowRight, Loader2, Check, Copy, ExternalLink, History, Download, Globe, X } from 'lucide-react';
+import { Link2, ArrowRight, Loader2, Check, Copy, ExternalLink, History, Download, Globe, X, Calendar } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -20,6 +20,7 @@ interface ShortenerFormProps {
 
 export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, domains }) => {
   const [url, setUrl] = useState('');
+  const [expiresAt, setExpiresAt] = useState('');
   const [selectedDomainId, setSelectedDomainId] = useState('');
   const [loading, setLoading] = useState(false);
   const [shortUrl, setShortUrl] = useState<string | null>(null);
@@ -53,7 +54,7 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, 
       const data = await apiClient<{ id: string; domainName: string | null }>('/api/shorten', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, domainId: selectedDomainId || undefined }),
+        body: JSON.stringify({ url, domainId: selectedDomainId || undefined, expiresAt: expiresAt || undefined }),
         errorMessage: 'Failed to shorten link'
       });
 
@@ -334,6 +335,23 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, 
                 <div className="absolute right-4 inset-y-0 flex items-center pointer-events-none">
                   <ArrowRight className="rotate-90 text-gray-500" size={14} />
                 </div>
+              </div>
+
+              <div className="relative group">
+                <div className="absolute left-4 inset-y-0 flex items-center pointer-events-none">
+                  <Calendar className={cn("transition-colors", theme === 'dark' ? "text-gray-500" : "text-gray-400")} size={18} />
+                </div>
+                <input
+                  type="datetime-local"
+                  value={expiresAt}
+                  onChange={(e) => setExpiresAt(e.target.value)}
+                  className={cn(
+                    "w-full pl-12 pr-4 py-3 rounded-2xl border outline-none transition-all font-bold text-xs uppercase tracking-widest",
+                    theme === 'dark' 
+                      ? "bg-black/20 border-white/10 text-white focus:border-brand/50" 
+                      : "bg-gray-50 border-gray-200 text-gray-900 focus:border-brand/50"
+                  )}
+                />
               </div>
 
               <div className="relative group">

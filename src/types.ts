@@ -30,13 +30,11 @@ export interface HistoryItem {
   clicks?: number;
 }
 
-export type UserRole = 'admin' | 'editor' | 'viewer';
-
 export interface User {
   id: string;
   email: string | null;
   emailVerified?: boolean;
-  role?: UserRole;
+  role?: string;
   plan?: string;
   pendingPlan?: string | null;
   status?: string;
@@ -48,6 +46,11 @@ export interface User {
   usage?: {
     linksThisMonth: number;
     domains: number;
+  };
+  notificationSettings?: {
+    linkCreation: boolean;
+    weeklyReports: boolean;
+    planExpiry: boolean;
   };
 }
 

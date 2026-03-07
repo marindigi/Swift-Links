@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { nanoid } from 'nanoid';
+import { Skeleton } from './Skeleton';
 import { Shield, Trash2, Search, User as UserIcon, Settings, Layout, Plus, ArrowUpDown, Edit2, Globe, Key, History } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { apiClient } from '../lib/api';
@@ -62,7 +63,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
   const [domains, setDomains] = useState<any[]>([]);
   const [apiKeys, setApiKeys] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [tabLoading, setTabLoading] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'createdAt' | 'email' | 'usage' | 'plan' | 'role' | 'status'>('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -82,7 +83,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
   }, [activeTab]);
 
   const fetchUsers = async () => {
-    setIsLoading(true);
+    setTabLoading(prev => ({ ...prev, users: true }));
     try {
       const data = await apiClient<UserData[]>('/api/admin/users');
       if (Array.isArray(data)) {
@@ -92,16 +93,16 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
         setUsers([]);
       }
       setSelectedUsers([]);
-    } catch (error) {
-      toast.error('Failed to fetch users');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to fetch users');
       setUsers([]);
     } finally {
-      setIsLoading(false);
+      setTabLoading(prev => ({ ...prev, users: false }));
     }
   };
 
   const fetchSettings = async () => {
-    setIsLoading(true);
+    setTabLoading(prev => ({ ...prev, settings: true }));
     try {
       const data = await apiClient<Setting[]>('/api/admin/settings');
       if (Array.isArray(data)) {
@@ -110,16 +111,16 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
       } else {
         setSettings([]);
       }
-    } catch (error) {
-      toast.error('Failed to fetch settings');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to fetch settings');
       setSettings([]);
     } finally {
-      setIsLoading(false);
+      setTabLoading(prev => ({ ...prev, settings: false }));
     }
   };
 
   const fetchContent = async () => {
-    setIsLoading(true);
+    setTabLoading(prev => ({ ...prev, content: true }));
     try {
       const [featuresData, faqsData] = await Promise.all([
         apiClient<LandingFeature[]>('/api/admin/features'),
@@ -137,51 +138,51 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
       } else {
         setFaqs([]);
       }
-    } catch (error) {
-      toast.error('Failed to fetch content');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to fetch content');
       setFeatures([]);
       setFaqs([]);
     } finally {
-      setIsLoading(false);
+      setTabLoading(prev => ({ ...prev, content: false }));
     }
   };
 
   const fetchDomains = async () => {
-    setIsLoading(true);
+    setTabLoading(prev => ({ ...prev, domains: true }));
     try {
       const data = await apiClient<any[]>('/api/admin/domains');
       setDomains(Array.isArray(data) ? data : []);
-    } catch (error) {
-      toast.error('Failed to fetch domains');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to fetch domains');
       setDomains([]);
     } finally {
-      setIsLoading(false);
+      setTabLoading(prev => ({ ...prev, domains: false }));
     }
   };
 
   const fetchApiKeys = async () => {
-    setIsLoading(true);
+    setTabLoading(prev => ({ ...prev, apiKeys: true }));
     try {
       const data = await apiClient<any[]>('/api/admin/keys');
       setApiKeys(Array.isArray(data) ? data : []);
-    } catch (error) {
-      toast.error('Failed to fetch API keys');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to fetch API keys');
       setApiKeys([]);
     } finally {
-      setIsLoading(false);
+      setTabLoading(prev => ({ ...prev, apiKeys: false }));
     }
   };
 
   const fetchHistory = async () => {
-    setIsLoading(true);
+    setTabLoading(prev => ({ ...prev, history: true }));
     try {
       const data = await apiClient<any[]>('/api/admin/history');
       setHistory(Array.isArray(data) ? data : []);
-    } catch (error) {
-      toast.error('Failed to fetch history');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to fetch history');
       setHistory([]);
     } finally {
-      setIsLoading(false);
+      setTabLoading(prev => ({ ...prev, history: false }));
     }
   };
 
@@ -193,8 +194,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
       });
       toast.success('Domain added');
       fetchDomains();
-    } catch (error) {
-      toast.error('Failed to add domain');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to add domain');
     }
   };
 
@@ -205,8 +206,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
       });
       toast.success('Domain deleted');
       fetchDomains();
-    } catch (error) {
-      toast.error('Failed to delete domain');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete domain');
     }
   };
 
@@ -217,8 +218,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
       });
       toast.success('Domain verified');
       fetchDomains();
-    } catch (error) {
-      toast.error('Failed to verify domain');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to verify domain');
     }
   };
 
@@ -231,8 +232,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
       toast.success('API Key generated');
       fetchApiKeys();
       return newKey;
-    } catch (error) {
-      toast.error('Failed to generate API key');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to generate API key');
       throw error;
     }
   };
@@ -244,8 +245,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
       });
       toast.success('API Key deleted');
       fetchApiKeys();
-    } catch (error) {
-      toast.error('Failed to delete API key');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete API key');
     }
   };
 
@@ -619,12 +620,14 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
               </tr>
             </thead>
             <tbody className={cn("divide-y", theme === 'dark' ? "divide-white/5" : "divide-gray-100")}>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={10} className="px-6 py-8 text-center text-gray-500">
-                    Loading users...
-                  </td>
-                </tr>
+              {tabLoading['users'] ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i}>
+                    <td colSpan={10} className="px-6 py-4">
+                      <Skeleton className="h-8 w-full" theme={theme} />
+                    </td>
+                  </tr>
+                ))
               ) : filteredUsers.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="px-6 py-8 text-center text-gray-500">
@@ -788,211 +791,218 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
       </div>
       </>
       ) : activeTab === 'settings' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {Array.isArray(settings) && settings.map((s) => (
-            <div key={s.key} className={cn(
-              "p-6 rounded-3xl border",
-              theme === 'dark' ? "bg-zinc-900 border-zinc-800" : "bg-white border-gray-100 shadow-sm"
-            )}>
-              <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-2 block">
-                {s.key.replace(/_/g, ' ')}
-              </label>
-              <div className="flex gap-2">
-                <input 
-                  type="text"
-                  defaultValue={s.value}
-                  onBlur={(e) => handleUpdateSetting(s.key, e.target.value)}
-                  className={cn(
-                    "flex-1 px-4 py-2 rounded-xl border outline-none focus:ring-2 focus:ring-brand/20 transition-all text-sm",
-                    theme === 'dark' ? "bg-black border-white/20 text-white" : "bg-white border-gray-200 text-gray-900"
-                  )}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : activeTab === 'domains' ? (
-        <DomainManager
-          isOpen={true}
-          onClose={() => {}}
-          domains={domains}
-          onAdd={handleAddDomain}
-          onDelete={handleDeleteDomain}
-          onVerify={handleVerifyDomain}
-          theme={theme}
-          standalone={true}
-        />
-      ) : activeTab === 'apiKeys' ? (
-        <ApiKeyManager
-          apiKeys={apiKeys}
-          onGenerate={handleGenerateApiKey}
-          onDelete={handleDeleteApiKey}
-          theme={theme}
-        />
-      ) : activeTab === 'history' ? (
-        <HistoryList
-          history={history}
-          theme={theme}
-          onDelete={handleDeleteHistoryItem}
-          onBulkDelete={handleBulkDeleteHistory}
-          onClear={handleClearHistory}
-          openShareModal={() => {}}
-          openQrModal={() => {}}
-          onItemClick={() => {}}
-        />
-      ) : (
-        <>
-        <div className="space-y-8">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold">Landing Page Features</h3>
-            {(user?.role === 'admin' || user?.role === 'editor') && (
-              <button 
-                onClick={() => handleUpdateFeature({ id: nanoid(), icon: 'Sparkles', title: 'New Feature', description: 'Description', displayOrder: features.length + 1 })}
-                className="px-4 py-2 bg-brand text-white rounded-xl text-xs font-bold hover:bg-brand-hover transition-all flex items-center gap-2"
-              >
-                <Plus size={14} />
-                Add Feature
-              </button>
-            )}
-          </div>
+        tabLoading['settings'] ? <Skeleton className="h-64 w-full" theme={theme} /> : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {Array.isArray(features) && features.map((f) => (
-              <div key={f.id} className={cn(
+            {Array.isArray(settings) && settings.map((s) => (
+              <div key={s.key} className={cn(
                 "p-6 rounded-3xl border",
                 theme === 'dark' ? "bg-zinc-900 border-zinc-800" : "bg-white border-gray-100 shadow-sm"
               )}>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-brand/10 rounded-xl flex items-center justify-center text-brand">
-                      {/* Icon selector would be better, but let's keep it simple */}
-                      <Settings size={20} />
-                    </div>
-                    <input 
-                      type="text"
-                      defaultValue={f.title}
-                      onBlur={(e) => handleUpdateFeature({ ...f, title: e.target.value })}
-                      className="bg-transparent font-bold outline-none focus:ring-1 focus:ring-brand rounded px-1"
-                    />
-                  </div>
-                  {(user?.role === 'admin' || user?.role === 'editor') && (
-                    <button 
-                      onClick={() => handleDeleteFeature(f.id)}
-                      className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-                </div>
-                <textarea 
-                  defaultValue={f.description}
-                  onBlur={(e) => handleUpdateFeature({ ...f, description: e.target.value })}
-                  className={cn(
-                    "w-full bg-transparent text-sm text-gray-500 outline-none focus:ring-1 focus:ring-brand rounded p-1 resize-none h-20",
-                    theme === 'dark' ? "text-gray-400" : "text-gray-600"
-                  )}
-                />
-                <div className="mt-4 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-gray-500 uppercase font-bold">Icon:</span>
-                      <select 
-                        value={f.icon}
-                        onChange={(e) => handleUpdateFeature({ ...f, icon: e.target.value })}
-                        className={cn(
-                          "text-[10px] px-2 py-1 rounded-lg border outline-none focus:ring-2 focus:ring-brand/20 transition-all font-bold uppercase tracking-widest",
-                          theme === 'dark' ? "bg-black border-white/20 text-white" : "bg-white border-gray-200 text-gray-900"
-                        )}
-                      >
-                        {['Sparkles', 'Zap', 'Shield', 'Globe', 'Activity', 'BarChart2', 'Lock', 'Cpu', 'Layers', 'MousePointer2', 'Share2', 'QrCode'].map(icon => (
-                          <option key={icon} value={icon}>{icon}</option>
-                        ))}
-                      </select>
-                    </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-gray-500 uppercase font-bold">Order:</span>
-                    <input 
-                      type="number"
-                      defaultValue={f.displayOrder}
-                      onBlur={(e) => handleUpdateFeature({ ...f, displayOrder: parseInt(e.target.value) })}
-                      className="text-[10px] bg-transparent font-mono outline-none focus:ring-1 focus:ring-brand rounded px-1 w-10"
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-8 mt-12 pt-12 border-t border-gray-100 dark:border-white/10">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold">Landing Page FAQs</h3>
-            {(user?.role === 'admin' || user?.role === 'editor') && (
-              <button 
-                onClick={() => handleUpdateFaq({ id: nanoid(), question: 'New Question', answer: 'Answer', displayOrder: faqs.length + 1 })}
-                className="px-4 py-2 bg-brand text-white rounded-xl text-xs font-bold hover:bg-brand-hover transition-all flex items-center gap-2"
-              >
-                <Plus size={14} />
-                Add FAQ
-              </button>
-            )}
-          </div>
-          <div className="space-y-4">
-            {Array.isArray(faqs) && faqs.map((faq) => (
-              <div key={faq.id} className={cn(
-                "p-6 rounded-3xl border",
-                theme === 'dark' ? "bg-zinc-900 border-zinc-800" : "bg-white border-gray-100 shadow-sm"
-              )}>
-                <div className="flex items-center justify-between mb-4">
+                <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-2 block">
+                  {s.key.replace(/_/g, ' ')}
+                </label>
+                <div className="flex gap-2">
                   <input 
                     type="text"
-                    defaultValue={faq.question}
-                    onBlur={(e) => handleUpdateFaq({ ...faq, question: e.target.value })}
-                    className="flex-1 bg-transparent font-bold outline-none focus:ring-1 focus:ring-brand rounded px-1"
+                    defaultValue={s.value}
+                    onBlur={(e) => handleUpdateSetting(s.key, e.target.value)}
+                    className={cn(
+                      "flex-1 px-4 py-2 rounded-xl border outline-none focus:ring-2 focus:ring-brand/20 transition-all text-sm",
+                      theme === 'dark' ? "bg-black border-white/20 text-white" : "bg-white border-gray-200 text-gray-900"
+                    )}
                   />
-                  {(user?.role === 'admin' || user?.role === 'editor') && (
-                    <button 
-                      onClick={() => handleDeleteFaq(faq.id)}
-                      className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl transition-all ml-4"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-                </div>
-                <textarea 
-                  defaultValue={faq.answer}
-                  onBlur={(e) => handleUpdateFaq({ ...faq, answer: e.target.value })}
-                  className={cn(
-                    "w-full bg-transparent text-sm text-gray-500 outline-none focus:ring-1 focus:ring-brand rounded p-1 resize-none h-20",
-                    theme === 'dark' ? "text-gray-400" : "text-gray-600"
-                  )}
-                />
-                <div className="mt-4 flex items-center gap-6">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-gray-500 uppercase font-bold">Order:</span>
-                    <input 
-                      type="number"
-                      defaultValue={faq.displayOrder}
-                      onBlur={(e) => handleUpdateFaq({ ...faq, displayOrder: parseInt(e.target.value) })}
-                      className="text-[10px] bg-transparent font-mono outline-none focus:ring-1 focus:ring-brand rounded px-1 w-10"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={!!faq.hidden}
-                      onChange={(e) => handleUpdateFaq({ ...faq, hidden: e.target.checked })}
-                      className="rounded border-gray-300 text-brand focus:ring-brand cursor-pointer"
-                    />
-                    <span className="text-[10px] text-gray-500 uppercase font-bold">Hidden</span>
-                  </div>
                 </div>
               </div>
             ))}
           </div>
-        </div>
-        </>
-      )}
+        )
+      ) : activeTab === 'domains' ? (
+        tabLoading['domains'] ? <Skeleton className="h-64 w-full" theme={theme} /> : (
+          <DomainManager
+            isOpen={true}
+            onClose={() => {}}
+            domains={domains}
+            onAdd={handleAddDomain}
+            onDelete={handleDeleteDomain}
+            onVerify={handleVerifyDomain}
+            theme={theme}
+            standalone={true}
+          />
+        )
+      ) : activeTab === 'apiKeys' ? (
+        tabLoading['apiKeys'] ? <Skeleton className="h-64 w-full" theme={theme} /> : (
+          <ApiKeyManager
+            apiKeys={apiKeys}
+            onGenerate={handleGenerateApiKey}
+            onDelete={handleDeleteApiKey}
+            theme={theme}
+          />
+        )
+      ) : activeTab === 'history' ? (
+        tabLoading['history'] ? <Skeleton className="h-64 w-full" theme={theme} /> : (
+          <HistoryList
+            history={history}
+            theme={theme}
+            onDelete={handleDeleteHistoryItem}
+            onBulkDelete={handleBulkDeleteHistory}
+            onClear={handleClearHistory}
+            openShareModal={() => {}}
+            openQrModal={() => {}}
+            onItemClick={() => {}}
+          />
+        )
+      ) : activeTab === 'content' ? (
+        tabLoading['content'] ? <Skeleton className="h-64 w-full" theme={theme} /> : (
+          <>
+            <div className="space-y-8">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold">Landing Page Features</h3>
+                {(user?.role === 'admin' || user?.role === 'editor') && (
+                  <button 
+                    onClick={() => handleUpdateFeature({ id: nanoid(), icon: 'Sparkles', title: 'New Feature', description: 'Description', displayOrder: features.length + 1 })}
+                    className="px-4 py-2 bg-brand text-white rounded-xl text-xs font-bold hover:bg-brand-hover transition-all flex items-center gap-2"
+                  >
+                    <Plus size={14} />
+                    Add Feature
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {Array.isArray(features) && features.map((f) => (
+                  <div key={f.id} className={cn(
+                    "p-6 rounded-3xl border",
+                    theme === 'dark' ? "bg-zinc-900 border-zinc-800" : "bg-white border-gray-100 shadow-sm"
+                  )}>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-brand/10 rounded-xl flex items-center justify-center text-brand">
+                          <Settings size={20} />
+                        </div>
+                        <input 
+                          type="text"
+                          defaultValue={f.title}
+                          onBlur={(e) => handleUpdateFeature({ ...f, title: e.target.value })}
+                          className="bg-transparent font-bold outline-none focus:ring-1 focus:ring-brand rounded px-1"
+                        />
+                      </div>
+                      {(user?.role === 'admin' || user?.role === 'editor') && (
+                        <button 
+                          onClick={() => handleDeleteFeature(f.id)}
+                          className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                    <textarea 
+                      defaultValue={f.description}
+                      onBlur={(e) => handleUpdateFeature({ ...f, description: e.target.value })}
+                      className={cn(
+                        "w-full bg-transparent text-sm text-gray-500 outline-none focus:ring-1 focus:ring-brand rounded p-1 resize-none h-20",
+                        theme === 'dark' ? "text-gray-400" : "text-gray-600"
+                      )}
+                    />
+                    <div className="mt-4 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-gray-500 uppercase font-bold">Icon:</span>
+                          <select 
+                            value={f.icon}
+                            onChange={(e) => handleUpdateFeature({ ...f, icon: e.target.value })}
+                            className={cn(
+                              "text-[10px] px-2 py-1 rounded-lg border outline-none focus:ring-2 focus:ring-brand/20 transition-all font-bold uppercase tracking-widest",
+                              theme === 'dark' ? "bg-black border-white/20 text-white" : "bg-white border-gray-200 text-gray-900"
+                            )}
+                          >
+                            {['Sparkles', 'Zap', 'Shield', 'Globe', 'Activity', 'BarChart2', 'Lock', 'Cpu', 'Layers', 'MousePointer2', 'Share2', 'QrCode'].map(icon => (
+                              <option key={icon} value={icon}>{icon}</option>
+                            ))}
+                          </select>
+                        </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-gray-500 uppercase font-bold">Order:</span>
+                        <input 
+                          type="number"
+                          defaultValue={f.displayOrder}
+                          onBlur={(e) => handleUpdateFeature({ ...f, displayOrder: parseInt(e.target.value) })}
+                          className="text-[10px] bg-transparent font-mono outline-none focus:ring-1 focus:ring-brand rounded px-1 w-10"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-      {/* Delete Confirmation Modal */}
+            <div className="space-y-8 mt-12 pt-12 border-t border-gray-100 dark:border-white/10">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold">Landing Page FAQs</h3>
+                {(user?.role === 'admin' || user?.role === 'editor') && (
+                  <button 
+                    onClick={() => handleUpdateFaq({ id: nanoid(), question: 'New Question', answer: 'Answer', displayOrder: faqs.length + 1 })}
+                    className="px-4 py-2 bg-brand text-white rounded-xl text-xs font-bold hover:bg-brand-hover transition-all flex items-center gap-2"
+                  >
+                    <Plus size={14} />
+                    Add FAQ
+                  </button>
+                )}
+              </div>
+              <div className="space-y-4">
+                {Array.isArray(faqs) && faqs.map((faq) => (
+                  <div key={faq.id} className={cn(
+                    "p-6 rounded-3xl border",
+                    theme === 'dark' ? "bg-zinc-900 border-zinc-800" : "bg-white border-gray-100 shadow-sm"
+                  )}>
+                    <div className="flex items-center justify-between mb-4">
+                      <input 
+                        type="text"
+                        defaultValue={faq.question}
+                        onBlur={(e) => handleUpdateFaq({ ...faq, question: e.target.value })}
+                        className="flex-1 bg-transparent font-bold outline-none focus:ring-1 focus:ring-brand rounded px-1"
+                      />
+                      {(user?.role === 'admin' || user?.role === 'editor') && (
+                        <button 
+                          onClick={() => handleDeleteFaq(faq.id)}
+                          className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl transition-all ml-4"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                    <textarea 
+                      defaultValue={faq.answer}
+                      onBlur={(e) => handleUpdateFaq({ ...faq, answer: e.target.value })}
+                      className={cn(
+                        "w-full bg-transparent text-sm text-gray-500 outline-none focus:ring-1 focus:ring-brand rounded p-1 resize-none h-20",
+                        theme === 'dark' ? "text-gray-400" : "text-gray-600"
+                      )}
+                    />
+                    <div className="mt-4 flex items-center gap-6">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-gray-500 uppercase font-bold">Order:</span>
+                        <input 
+                          type="number"
+                          defaultValue={faq.displayOrder}
+                          onBlur={(e) => handleUpdateFaq({ ...faq, displayOrder: parseInt(e.target.value) })}
+                          className="text-[10px] bg-transparent font-mono outline-none focus:ring-1 focus:ring-brand rounded px-1 w-10"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={!!faq.hidden}
+                          onChange={(e) => handleUpdateFaq({ ...faq, hidden: e.target.checked })}
+                          className="rounded border-gray-300 text-brand focus:ring-brand cursor-pointer"
+                        />
+                        <span className="text-[10px] text-gray-500 uppercase font-bold">Hidden</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )
+      ) : null}{/* Delete Confirmation Modal */}
       <DeleteUserModal 
         isOpen={!!userToDelete} 
         onClose={() => setUserToDelete(null)} 
