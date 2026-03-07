@@ -30,11 +30,13 @@ export interface HistoryItem {
   clicks?: number;
 }
 
+export type UserRole = 'admin' | 'editor' | 'viewer';
+
 export interface User {
   id: string;
   email: string | null;
   emailVerified?: boolean;
-  role?: string;
+  role?: UserRole;
   plan?: string;
   pendingPlan?: string | null;
   status?: string;

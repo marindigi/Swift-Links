@@ -917,7 +917,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
             {topUrls.map((url: any, idx: number) => {
               const shortUrl = `${window.location.protocol}//${url.domainId ? url.domainId : window.location.host}/${url.id}`;
               return (
-                <div key={`top-url-${url.id}-${idx}`} className={cn(
+                <div key={url.id} className={cn(
                   "flex items-center justify-between p-5 rounded-2xl border transition-all group relative overflow-hidden",
                   theme === 'dark' ? "bg-white/5 border-white/5 hover:border-white/10" : "bg-gray-50 border-gray-100 hover:border-gray-200"
                 )}>
@@ -971,7 +971,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           </h3>
           <div className="space-y-3">
             {recentClicks.map((click: any, idx: number) => (
-              <div key={`recent-click-${click.id || idx}`} className={cn(
+              <div key={click.id || `recent-click-${idx}`} className={cn(
                 "flex items-center justify-between p-5 rounded-2xl border transition-all relative overflow-hidden group",
                 theme === 'dark' ? "bg-white/5 border-white/5" : "bg-gray-50 border-gray-100"
               )}>

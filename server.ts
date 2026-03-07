@@ -1985,6 +1985,24 @@ const checkDomainLimit = (userId: string) => {
     }
   });
 
+  app.get("/api/admin/domains", authenticate, requireAdmin, (_req, res) => {
+    try {
+      const domains = db.prepare("SELECT * FROM domains").all();
+      res.json(domains);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch domains" });
+    }
+  });
+
+  app.get("/api/admin/keys", authenticate, requireAdmin, (_req, res) => {
+    try {
+      const keys = db.prepare("SELECT * FROM apiKeys").all();
+      res.json(keys);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch API keys" });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

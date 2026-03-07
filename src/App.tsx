@@ -32,6 +32,7 @@ import { LandingPage } from './components/LandingPage';
 import { DomainManager } from './components/DomainManager';
 import { ApiKeyManager } from './components/ApiKeyManager';
 import { ProfileView } from './components/ProfileView';
+import { canManageLinks } from './lib/permissions';
 
 import { PaymentModal } from './components/PaymentModal';
 import { FeedbackModal } from './components/FeedbackModal';
@@ -1396,7 +1397,7 @@ function AppContent() {
           </div>
         )}
 
-        {view === 'home' ? (
+        {view === 'home' && user && canManageLinks(user.role) && (
           <>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -1626,6 +1627,7 @@ function AppContent() {
                 </div>
               </form>
             </motion.div>
+          </>)}
 
             {/* Result Section */}
             <AnimatePresence>
@@ -1897,6 +1899,7 @@ function AppContent() {
             theme={theme}
             setView={setView}
             onRefresh={fetchAnalytics}
+            userRole={user?.role}
           />
         ) : view === 'domains' ? (
           <div className="space-y-6">
@@ -2003,8 +2006,9 @@ function AppContent() {
       <div className="fixed inset-0 pointer-events-none z-[-1] opacity-[0.03]" 
            style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
       <AnimatePresence>
-        {isShareModalOpen && <ShareModal />}
-        <QrCodeModal 
+        <>
+          {isShareModalOpen && <ShareModal />}
+          <QrCodeModal 
           isOpen={isQrModalOpen} 
           onClose={() => setIsQrModalOpen(false)} 
           url={qrUrl} 
@@ -2060,6 +2064,7 @@ function AppContent() {
             </motion.div>
           </div>
         )}
+        </>
       </AnimatePresence>
     </DashboardLayout>
   );

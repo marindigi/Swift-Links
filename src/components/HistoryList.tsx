@@ -224,10 +224,10 @@ export const HistoryList: React.FC<HistoryListProps> = ({
             </button>
           </div>
         )}
-        {uniqueFilteredHistory.map((item, index) => (
+        {uniqueFilteredHistory.map((item) => (
             <motion.div 
               layout
-              key={`history-${item.id}-${index}`}
+              key={item.id}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
@@ -487,7 +487,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                           : (bUrl?.split ? bUrl.split('/').pop() : '') || '';
                         
                         return (
-                          <div key={`bulk-${item.id}-${idx}`} className="flex items-center justify-between group/bulk-item py-0.5">
+                          <div key={`${item.id}-${idx}`} className="flex items-center justify-between group/bulk-item py-0.5">
                             <span className="text-[10px] font-mono text-gray-500 truncate flex-1">
                               {displayValue}
                             </span>

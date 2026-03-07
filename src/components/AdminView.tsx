@@ -611,8 +611,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user, index) => (
-                  <tr key={`${user.id}-${index}`} className={cn(
+                filteredUsers.map((user) => (
+                  <tr key={user.id} className={cn(
                     "transition-colors",
                     theme === 'dark' ? "hover:bg-white/5" : "hover:bg-gray-50/50"
                   )}>
@@ -766,8 +766,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
       </>
       ) : activeTab === 'settings' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {Array.isArray(settings) && settings.map((s, index) => (
-            <div key={`${s.key}-${index}`} className={cn(
+          {Array.isArray(settings) && settings.map((s) => (
+            <div key={s.key} className={cn(
               "p-6 rounded-3xl border",
               theme === 'dark' ? "bg-zinc-900 border-zinc-800" : "bg-white border-gray-100 shadow-sm"
             )}>
@@ -831,8 +831,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {Array.isArray(features) && features.map((f, index) => (
-              <div key={`${f.id}-${index}`} className={cn(
+            {Array.isArray(features) && features.map((f) => (
+              <div key={f.id} className={cn(
                 "p-6 rounded-3xl border",
                 theme === 'dark' ? "bg-zinc-900 border-zinc-800" : "bg-white border-gray-100 shadow-sm"
               )}>
@@ -907,8 +907,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ theme, user }) => {
             </button>
           </div>
           <div className="space-y-4">
-            {Array.isArray(faqs) && faqs.map((faq, index) => (
-              <div key={`${faq.id}-${index}`} className={cn(
+            {Array.isArray(faqs) && faqs.map((faq) => (
+              <div key={faq.id} className={cn(
                 "p-6 rounded-3xl border",
                 theme === 'dark' ? "bg-zinc-900 border-zinc-800" : "bg-white border-gray-100 shadow-sm"
               )}>
