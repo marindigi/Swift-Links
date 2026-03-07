@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Link2, BarChart2, Globe, Key, Shield, User as UserIcon, LogOut, Sun, Moon, MessageSquare } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { User } from '../types';
@@ -29,6 +30,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   onFetchAnalytics
 }) => {
   const [signedAvatarUrl, setSignedAvatarUrl] = useState<string | null>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
     if (user?.avatar_url) {
@@ -300,37 +302,76 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             >
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            <div className="flex items-center gap-3 pl-2">
-              <div className="text-right hidden sm:block leading-tight">
-                <p className="text-xs font-bold">{user?.name || 'User'}</p>
-                <p className="text-[10px] text-gray-500 truncate max-w-[150px]">{user?.email}</p>
-                <span className={cn(
-                  "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md inline-block mt-0.5",
-                  theme === 'dark' ? "bg-brand/10 text-brand" : "bg-brand/5 text-brand"
-                )}>
-                  {user?.plan || 'Free'}
-                </span>
-              </div>
-              <div className={cn(
-                "w-8 h-8 rounded-lg overflow-hidden border",
-                theme === 'dark' ? "border-white/10" : "border-gray-200"
-              )}>
-                {signedAvatarUrl ? (
-                  <img 
-                    src={signedAvatarUrl} 
-                    alt={user?.name || 'User'} 
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <div className={cn(
-                    "w-full h-full flex items-center justify-center",
-                    theme === 'dark' ? "bg-white/5 text-gray-400" : "bg-gray-100 text-gray-500"
+            <div className="relative">
+              <button
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="flex items-center gap-3 pl-2 hover:opacity-80 transition-opacity"
+              >
+                <div className="text-right hidden sm:block leading-tight">
+                  <p className="text-xs font-bold">{user?.name || 'User'}</p>
+                  <p className="text-[10px] text-gray-500 truncate max-w-[150px]">{user?.email}</p>
+                  <span className={cn(
+                    "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md inline-block mt-0.5",
+                    theme === 'dark' ? "bg-brand/10 text-brand" : "bg-brand/5 text-brand"
                   )}>
-                    <UserIcon size={14} />
-                  </div>
+                    {user?.plan || 'Free'}
+                  </span>
+                </div>
+                <div className={cn(
+                  "w-8 h-8 rounded-lg overflow-hidden border",
+                  theme === 'dark' ? "border-white/10" : "border-gray-200"
+                )}>
+                  {signedAvatarUrl ? (
+                    <img 
+                      src={signedAvatarUrl} 
+                      alt={user?.name || 'User'} 
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className={cn(
+                      "w-full h-full flex items-center justify-center",
+                      theme === 'dark' ? "bg-white/5 text-gray-400" : "bg-gray-100 text-gray-500"
+                    )}>
+                      <UserIcon size={14} />
+                    </div>
+                  )}
+                </div>
+              </button>
+              
+              <AnimatePresence>
+                {isDropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className={cn(
+                      "absolute right-0 top-full mt-2 w-48 rounded-2xl border shadow-xl overflow-hidden z-50",
+                      theme === 'dark' ? "bg-[#111111] border-white/10" : "bg-white border-gray-200"
+                    )}
+                  >
+                    <button
+                      onClick={() => { setView('profile'); setIsDropdownOpen(false); }}
+                      className={cn(
+                        "w-full flex items-center gap-2 px-4 py-3 text-sm font-bold transition-colors",
+                        theme === 'dark' ? "hover:bg-white/5 text-gray-300" : "hover:bg-gray-50 text-gray-700"
+                      )}
+                    >
+                      <UserIcon size={16} />
+                      Profile
+                    </button>
+                    <button
+                      onClick={() => { onLogout(); setIsDropdownOpen(false); }}
+                      className={cn(
+                        "w-full flex items-center gap-2 px-4 py-3 text-sm font-bold transition-colors text-red-500 hover:bg-red-500/10"
+                      )}
+                    >
+                      <LogOut size={16} />
+                      Sign Out
+                    </button>
+                  </motion.div>
                 )}
-              </div>
+              </AnimatePresence>
             </div>
           </div>
         </div>

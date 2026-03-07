@@ -197,7 +197,7 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, 
         setUrl('');
         setBulkUrlList('');
       } else if (allUrls.length > 0) {
-        toast.success(`Generated ${allUrls.length} links with some failures.`);
+        toast.error(`Generated ${allUrls.length} links with some failures.`);
       } else {
         toast.error('Failed to generate any links.');
       }
@@ -339,7 +339,8 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, 
               </div>
 
               <div className="relative group">
-                <div className="absolute left-4 inset-y-0 flex items-center pointer-events-none">
+                <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1 block">Expiration Date & Time (Optional)</label>
+                <div className="absolute left-4 top-8 flex items-center pointer-events-none">
                   <Calendar className={cn("transition-colors", theme === 'dark' ? "text-gray-500" : "text-gray-400")} size={18} />
                 </div>
                 <input
@@ -375,7 +376,7 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, 
                 <>
                   <input
                     type="url"
-                    placeholder={isBulkMode ? "e.g., https://example.com/page" : "e.g., https://www.google.com/search?q=example..."}
+                    placeholder="e.g., https://example.com/very-long-url-that-needs-shortening"
                     value={url}
                     onChange={(e) => { 
                       setUrl(e.target.value); 
@@ -387,11 +388,11 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, 
                       theme === 'dark' 
                         ? "bg-black/20 border-white/10 text-white placeholder:text-gray-600 focus:border-brand/50 focus:bg-black/40" 
                         : "bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-brand/50 focus:bg-white",
-                      hasError && "border-red-500 focus:border-red-500 ring-2 ring-red-500/20",
+                      hasError && "border-red-500 focus:border-red-500 ring-4 ring-red-500/10",
                       !hasError && url.length > 0 && (
                         (() => {
                           try { new URL(url); return true; } catch { return false; }
-                        })() ? "border-emerald-500 focus:border-emerald-500 ring-2 ring-emerald-500/20" : "border-amber-500 focus:border-amber-500 ring-2 ring-amber-500/20"
+                        })() ? "border-emerald-500 focus:border-emerald-500 ring-4 ring-emerald-500/10" : "border-amber-500 focus:border-amber-500 ring-4 ring-amber-500/10"
                       )
                     )}
                     required
@@ -545,7 +546,20 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, 
                       className="flex items-center justify-between w-full text-[10px] font-bold text-red-500 uppercase tracking-widest mb-2"
                     >
                       <span>Failed URLs ({bulkFailedUrls.length})</span>
-                      <ChevronDown size={12} className={cn("transition-transform", isFailedUrlsExpanded && "rotate-180")} />
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const text = bulkFailedUrls.map(f => `${f.url}: ${f.error}`).join('\n');
+                            navigator.clipboard.writeText(text);
+                            toast.success('Failed URLs copied to clipboard');
+                          }}
+                          className="text-[10px] font-bold text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 uppercase tracking-widest"
+                        >
+                          Copy
+                        </button>
+                        <ChevronDown size={12} className={cn("transition-transform", isFailedUrlsExpanded && "rotate-180")} />
+                      </div>
                     </button>
                     <AnimatePresence>
                       {isFailedUrlsExpanded && (

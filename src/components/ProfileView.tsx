@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Settings, Sparkles, Loader2, Trash2, Palette, Key, LogOut, Link2, Globe, CreditCard, CheckCircle, Plus, Bell, MessageSquare } from 'lucide-react';
+import { Settings, Sparkles, Loader2, Trash2, Palette, Key, LogOut, Link2, Globe, CreditCard, CheckCircle, Plus, Bell, MessageSquare, User as UserIcon } from 'lucide-react';
+import { uploadFile, getSignedUrl } from '../lib/storage';
 import { Skeleton } from './Skeleton';
 import { toast } from 'react-hot-toast';
 import { clsx, type ClassValue } from 'clsx';
@@ -69,8 +70,49 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     planExpiry: true
   });
   const [isUpdatingNotifications, setIsUpdatingNotifications] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [signedAvatarUrl, setSignedAvatarUrl] = useState<string | null>(null);
   const [isDomainManagerOpen, setIsDomainManagerOpen] = useState(false);
   const [localDomains, setLocalDomains] = useState(domains);
+
+  React.useEffect(() => {
+    if (avatarUrl) {
+      loadSignedAvatar(avatarUrl);
+    }
+  }, [avatarUrl]);
+
+  const loadSignedAvatar = async (path: string) => {
+    try {
+      const url = await getSignedUrl(path);
+      setSignedAvatarUrl(url);
+    } catch (error) {
+      console.error('Failed to load signed avatar:', error);
+      setSignedAvatarUrl(null);
+    }
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    if (!user?.id) return;
+
+    setIsUploadingAvatar(true);
+    try {
+      const path = await uploadFile({
+        featureName: 'avatar',
+        itemId: user.id,
+        file,
+        userId: user.id
+      });
+      setAvatarUrl(path);
+      toast.success('Avatar uploaded successfully');
+    } catch (error: any) {
+      console.error('Failed to upload avatar:', error);
+      toast.error('Failed to upload avatar');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
 
   React.useEffect(() => {
     setLocalDomains(domains);
@@ -517,17 +559,34 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               />
             </div>
             <div>
-              <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1 block">Avatar URL</label>
-              <input 
-                type="text"
-                value={avatarUrl}
-                onChange={(e) => setAvatarUrl(e.target.value)}
-                className={cn(
-                  "w-full border rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand/50 outline-none transition-all",
-                  theme === 'dark' ? "bg-white/5 border-white/10 text-white" : "bg-gray-50 border-gray-200 text-gray-900"
-                )}
-                placeholder="https://example.com/avatar.png"
-              />
+              <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1 block">Profile Picture</label>
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full overflow-hidden border border-gray-200 dark:border-white/10">
+                  {signedAvatarUrl ? (
+                    <img src={signedAvatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-gray-100 dark:bg-white/5 flex items-center justify-center">
+                      <UserIcon size={24} className="text-gray-400" />
+                    </div>
+                  )}
+                </div>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleAvatarUpload} 
+                  className="hidden" 
+                  id="avatar-upload"
+                />
+                <label 
+                  htmlFor="avatar-upload"
+                  className={cn(
+                    "px-4 py-2 rounded-xl border transition-all flex items-center gap-2 text-sm font-bold cursor-pointer",
+                    theme === 'dark' ? "bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10" : "bg-white border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                  )}
+                >
+                  {isUploadingAvatar ? <Loader2 className="animate-spin" size={16} /> : 'Upload Picture'}
+                </label>
+              </div>
             </div>
             <div>
               <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1 block">Email Address</label>
