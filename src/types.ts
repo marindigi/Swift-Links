@@ -1,9 +1,22 @@
+export interface FileItem {
+  id: string;
+  userId: string;
+  name: string;
+  storagePath: string;
+  downloadURL: string;
+  size: number;
+  type: string;
+  folderId?: string;
+  createdAt: any; // Firestore Timestamp
+}
+
 export interface Domain {
   id: string;
   name: string;
   status?: 'pending' | 'verified' | 'failed';
   verificationToken?: string;
   verificationType?: 'txt';
+  expiresAt?: string | null;
 }
 
 export interface HistoryItem {

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, Component } from 'react';
+import * as React from 'react';
+import { useState, useEffect, Component } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { nanoid } from 'nanoid';
 import { 
@@ -180,7 +181,7 @@ function AppContent() {
 
   useEffect(() => {
     loadHistory();
-    checkAuth();
+    checkAuth().catch(console.error);
 
     // Global handler for unhandled promise rejections
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
@@ -208,18 +209,6 @@ function AppContent() {
     onAuthStateChanged(auth, async (firebaseUser) => {
       try {
         if (!firebaseUser) {
-          // Verify if local session is also invalid before clearing user
-          try {
-            const userData = await apiClient<User>('/api/auth/me', { showToast: false });
-            if (userData && !('error' in userData)) {
-              setUser(userData);
-              fetchDomains();
-              fetchApiKeys();
-              fetchAnalytics();
-              return;
-            }
-          } catch(e) {}
-          
           setUser(null);
           setDomains([]);
           setApiKeys([]);
@@ -684,7 +673,7 @@ function AppContent() {
       toast.success('Link shortened successfully!');
       
       // Refresh user data to update usage stats
-      checkAuth();
+      checkAuth().catch(console.error);
       
       // Clear form fields
       setUrl('');
@@ -833,7 +822,7 @@ function AppContent() {
       toast.success(`Successfully generated ${allUrls.length} links!`);
       
       // Refresh user data to update usage stats
-      checkAuth();
+      checkAuth().catch(console.error);
       
       // Clear form fields
       setUrl('');
@@ -921,7 +910,7 @@ function AppContent() {
         successMessage: 'Upgrade request sent! Admin will activate your plan shortly.'
       });
       // Refresh user data
-      checkAuth();
+      checkAuth().catch(console.error);
       return true;
     } catch (error) {
       return false;
@@ -1524,11 +1513,19 @@ function AppContent() {
                     
                     {isBulkMode && bulkType === 'list' ? (
                       <textarea
-                        placeholder="Paste your list of URLs here (one per line)..."
+                        placeholder="Paste your list of URLs here (one per line, comma or space separated)..."
                         value={bulkUrlList}
                         onChange={(e) => {
                           setBulkUrlList(e.target.value);
                           setHasError(false);
+                        }}
+                        onPaste={(e) => {
+                          const pastedText = e.clipboardData.getData('text');
+                          const urls = pastedText.split(/[\n, \t]+/).filter(u => u.trim().length > 0).map(u => u.trim());
+                          if (urls.length > 0) {
+                            setBulkUrlList(prev => prev + (prev ? '\n' : '') + urls.join('\n'));
+                            e.preventDefault();
+                          }
                         }}
                         className={cn(
                           "w-full pl-12 pr-4 py-4 rounded-2xl border outline-none transition-all font-medium text-lg min-h-[120px] resize-y",

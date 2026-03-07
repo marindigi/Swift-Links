@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, BarChart2, History, Globe, Link as LinkIcon, Calendar, Filter, RefreshCw, MousePointer2, MapPin, ExternalLink, Clock, Activity, Zap, List, Smartphone, Monitor, Tablet, Cpu, Layers, Layout } from 'lucide-react';
-import { ResponsiveContainer, AreaChart as ReAreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend } from 'recharts';
+import { ResponsiveContainer, AreaChart as ReAreaChart, Area, BarChart as ReBarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend } from 'recharts';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { motion } from 'motion/react';
@@ -545,6 +545,62 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
             <h3 className="text-sm font-black uppercase tracking-[0.3em] flex items-center gap-3">
               <History className="text-brand" size={18} />
               Temporal Click Distribution
+            </h3>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-sm bg-brand/20 border border-brand/40" />
+              <span className="text-[10px] font-mono text-gray-500 uppercase">Click Intensity</span>
+            </div>
+          </div>
+          <div className="h-[350px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <ReBarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? '#ffffff05' : '#00000005'} />
+                <XAxis 
+                  dataKey="date" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 9, fill: '#6b7280', fontFamily: 'monospace' }}
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 9, fill: '#6b7280', fontFamily: 'monospace' }}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: theme === 'dark' ? '#0a0a0a' : '#fff',
+                    borderColor: theme === 'dark' ? '#ffffff10' : '#00000010',
+                    borderRadius: '12px',
+                    fontSize: '11px',
+                    fontFamily: 'monospace',
+                    boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
+                  }}
+                  cursor={{ fill: theme === 'dark' ? '#ffffff05' : '#00000005' }}
+                />
+                <Bar 
+                  dataKey="clicks" 
+                  fill="#10b981" 
+                  radius={[4, 4, 0, 0]}
+                  animationDuration={1500}
+                />
+              </ReBarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      <div className={cn(
+        "p-8 rounded-3xl border backdrop-blur-sm transition-all relative overflow-hidden",
+        theme === 'dark' ? "bg-[#0a0a0a] border-white/10" : "bg-white border-gray-200 shadow-sm"
+      )}>
+        {/* Decorative grid background */}
+        <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={{ backgroundImage: 'linear-gradient(to right, #888 1px, transparent 1px), linear-gradient(to bottom, #888 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+        
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-10">
+            <h3 className="text-sm font-black uppercase tracking-[0.3em] flex items-center gap-3">
+              <History className="text-brand" size={18} />
+              Temporal Click Distribution (Area)
             </h3>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-sm bg-brand/20 border border-brand/40" />

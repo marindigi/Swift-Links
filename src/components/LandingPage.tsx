@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link2, ArrowRight, Loader2, Sparkles, Globe, Twitter, Sun, Moon, X, User, BarChart2, Shield, Zap, Github, Check, MessageSquare, Mail, Lock, QrCode, ChevronDown } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
@@ -164,9 +165,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [features, setFeatures] = useState<any[]>([]);
   const [faqs, setFaqs] = useState<any[]>([]);
+  const [isLoadingPublicData, setIsLoadingPublicData] = useState(true);
 
   useEffect(() => {
     const fetchPublicSettings = async () => {
+      setIsLoadingPublicData(true);
       try {
         const data = await apiClient('/api/public/settings', { showToast: false });
         setSettings(data.settings || {});
@@ -180,6 +183,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
         setFaqs(uniqueFaqs);
       } catch (error) {
         console.error('Failed to fetch public settings:', error);
+      } finally {
+        setIsLoadingPublicData(false);
       }
     };
     fetchPublicSettings();
@@ -328,7 +333,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
             </p>
 
             {/* Interactive URL Input */}
-            <form onSubmit={handleMockShorten} className="max-w-xl mx-auto relative group">
+            <motion.form 
+              onSubmit={handleMockShorten} 
+              className="max-w-xl mx-auto relative group"
+              whileHover={{ scale: 1.02 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            >
               <div className={cn(
                 "relative flex items-center p-2 rounded-2xl border shadow-sm transition-all",
                 theme === 'dark' ? "bg-[#111111] border-white/10" : "bg-white border-gray-200"
@@ -351,7 +361,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                   Shorten <ArrowRight size={16} />
                 </button>
               </div>
-            </form>
+            </motion.form>
           </motion.div>
         </div>
       </section>
@@ -365,13 +375,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 auto-rows-[320px]">
-            {features.length > 0 ? (
+            {isLoadingPublicData ? (
+              [...Array(3)].map((_, i) => (
+                <div 
+                  key={i} 
+                  className={cn(
+                    "rounded-[32px] p-10 border animate-pulse",
+                    i % 3 === 0 ? "md:col-span-2" : "",
+                    theme === 'dark' ? "bg-[#111111] border-white/5" : "bg-white border-gray-200"
+                  )} 
+                />
+              ))
+            ) : features.length > 0 ? (
               features.map((feature, index) => (
                 <motion.div 
                   key={feature.id}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
+                  whileHover={{ y: -5 }}
                   transition={{ delay: index * 0.1 }}
                   className={cn(
                     "rounded-[32px] p-10 flex flex-col justify-between border relative overflow-hidden group transition-all hover:shadow-lg",
@@ -416,6 +438,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
+                  whileHover={{ y: -5 }}
                   className={cn(
                     "md:col-span-2 rounded-[32px] p-10 flex flex-col justify-between border relative overflow-hidden group transition-all hover:shadow-lg",
                     theme === 'dark' ? "bg-[#111111] border-white/5 hover:border-white/10" : "bg-white border-gray-200 hover:border-gray-300"
@@ -448,6 +471,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
+                  whileHover={{ y: -5 }}
                   transition={{ delay: 0.1 }}
                   className={cn(
                     "rounded-[32px] p-10 flex flex-col justify-between border relative overflow-hidden transition-all hover:shadow-lg",
@@ -467,6 +491,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
+                  whileHover={{ y: -5 }}
                   transition={{ delay: 0.2 }}
                   className={cn(
                     "rounded-[32px] p-10 flex flex-col justify-between border relative overflow-hidden transition-all hover:shadow-lg",
@@ -742,64 +767,78 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
           </div>
 
           {/* Trust Badge / Marquee */}
-          <div className="mt-24 text-center overflow-hidden">
-            <p className="text-sm text-gray-400 mb-10 uppercase tracking-widest font-semibold">Trusted by innovative teams at</p>
-            
-            <div className="relative flex overflow-x-hidden group">
-              <div className={cn(
-                "absolute left-0 top-0 bottom-0 w-32 z-10 bg-gradient-to-r",
-                theme === 'dark' ? "from-[#050505] to-transparent" : "from-[#f5f5f5] to-transparent"
-              )} />
-              <div className={cn(
-                "absolute right-0 top-0 bottom-0 w-32 z-10 bg-gradient-to-l",
-                theme === 'dark' ? "from-[#050505] to-transparent" : "from-[#f5f5f5] to-transparent"
-              )} />
+          {settings.show_trust_badge !== 'false' && (
+            <div className="mt-24 text-center overflow-hidden">
+              <p className="text-sm text-gray-400 mb-10 uppercase tracking-widest font-semibold">Trusted by innovative teams at</p>
               
-              <div className="flex animate-marquee whitespace-nowrap gap-16 items-center pr-16 opacity-40 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500">
-                {[...Array(2)].map((_, i) => (
-                  <React.Fragment key={`marquee1-${i}`}>
-                    <GoogleLogo />
-                    <MicrosoftLogo />
-                    <SpotifyLogo />
-                    <AmazonLogo />
-                    <StripeLogo />
-                    <LinearLogo />
-                    <VercelLogo />
-                    <AirbnbLogo />
-                    <NetflixLogo />
-                  </React.Fragment>
-                ))}
-              </div>
-              <div className="flex absolute top-0 left-0 animate-marquee2 whitespace-nowrap gap-16 items-center pr-16 opacity-40 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500">
-                {[...Array(2)].map((_, i) => (
-                  <React.Fragment key={`marquee2-${i}`}>
-                    <GoogleLogo />
-                    <MicrosoftLogo />
-                    <SpotifyLogo />
-                    <AmazonLogo />
-                    <StripeLogo />
-                    <LinearLogo />
-                    <VercelLogo />
-                    <AirbnbLogo />
-                    <NetflixLogo />
-                  </React.Fragment>
-                ))}
+              <div className="relative flex overflow-x-hidden group">
+                <div className={cn(
+                  "absolute left-0 top-0 bottom-0 w-32 z-10 bg-gradient-to-r",
+                  theme === 'dark' ? "from-[#050505] to-transparent" : "from-[#f5f5f5] to-transparent"
+                )} />
+                <div className={cn(
+                  "absolute right-0 top-0 bottom-0 w-32 z-10 bg-gradient-to-l",
+                  theme === 'dark' ? "from-[#050505] to-transparent" : "from-[#f5f5f5] to-transparent"
+                )} />
+                
+                <div className="flex animate-marquee whitespace-nowrap gap-16 items-center pr-16 opacity-40 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500">
+                  {[...Array(2)].map((_, i) => (
+                    <React.Fragment key={`marquee1-${i}`}>
+                      <GoogleLogo />
+                      <MicrosoftLogo />
+                      <SpotifyLogo />
+                      <AmazonLogo />
+                      <StripeLogo />
+                      <LinearLogo />
+                      <VercelLogo />
+                      <AirbnbLogo />
+                      <NetflixLogo />
+                    </React.Fragment>
+                  ))}
+                </div>
+                <div className="flex absolute top-0 left-0 animate-marquee2 whitespace-nowrap gap-16 items-center pr-16 opacity-40 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500">
+                  {[...Array(2)].map((_, i) => (
+                    <React.Fragment key={`marquee2-${i}`}>
+                      <GoogleLogo />
+                      <MicrosoftLogo />
+                      <SpotifyLogo />
+                      <AmazonLogo />
+                      <StripeLogo />
+                      <LinearLogo />
+                      <VercelLogo />
+                      <AirbnbLogo />
+                      <NetflixLogo />
+                    </React.Fragment>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </section>
 
       {/* FAQ Section */}
       <section className="py-32 px-6 relative z-10">
-        <div className="max-w-3xl mx-auto">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="max-w-3xl mx-auto"
+        >
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight">Frequently Asked Questions</h2>
             <p className="text-gray-500 text-lg">Everything you need to know about Cutly.</p>
           </div>
 
           <div className="space-y-4">
-            {faqs.filter(f => !f.hidden).length > 0 ? (
+            {isLoadingPublicData ? (
+              [...Array(3)].map((_, i) => (
+                <div key={i} className={cn(
+                  "h-16 rounded-2xl border animate-pulse",
+                  theme === 'dark' ? "bg-[#111111] border-white/5" : "bg-white border-gray-200"
+                )} />
+              ))
+            ) : faqs.filter(f => !f.hidden).length > 0 ? (
               faqs.filter(f => !f.hidden).map((faq) => (
                 <FAQItem key={faq.id} faq={faq} theme={theme} />
               ))
@@ -809,7 +848,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* Footer */}

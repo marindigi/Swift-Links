@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Link2, BarChart2, Globe, Key, Shield, User as UserIcon, LogOut, Sun, Moon, MessageSquare } from 'lucide-react';
+import * as React from 'react';
+import { useState, useEffect } from 'react';
+import { Link2, BarChart2, Globe, Key, Shield, User as UserIcon, LogOut, Sun, Moon, MessageSquare, HardDrive } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { User } from '../types';
 import { ExpirationBanner } from './ExpirationBanner';
@@ -83,6 +84,18 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           >
             <Link2 size={18} />
             <span>Dashboard</span>
+          </button>
+          <button
+            onClick={() => setView('files')}
+            className={cn(
+              "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:scale-[1.02]",
+              view === 'files' 
+                ? "bg-brand text-white shadow-lg shadow-brand/20" 
+                : "text-gray-400 hover:text-gray-100 hover:bg-white/5"
+            )}
+          >
+            <HardDrive size={18} />
+            <span>My Files</span>
           </button>
           <button
             onClick={() => {
@@ -295,9 +308,15 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
             <div className="flex items-center gap-3 pl-2">
-              <div className="text-right hidden sm:block">
-                <p className="text-xs font-bold">{user?.name || user?.email || 'User'}</p>
-                <p className="text-[10px] text-gray-500 uppercase tracking-wider">{user?.role || 'User'}</p>
+              <div className="text-right hidden sm:block leading-tight">
+                <p className="text-xs font-bold">{user?.name || 'User'}</p>
+                <p className="text-[10px] text-gray-500 truncate max-w-[150px]">{user?.email}</p>
+                <span className={cn(
+                  "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md inline-block mt-0.5",
+                  theme === 'dark' ? "bg-brand/10 text-brand" : "bg-brand/5 text-brand"
+                )}>
+                  {user?.plan || 'Free'}
+                </span>
               </div>
               <div className={cn(
                 "w-8 h-8 rounded-lg overflow-hidden border",

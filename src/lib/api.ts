@@ -87,9 +87,7 @@ export async function apiClient<T = any>(endpoint: string, options: ApiOptions =
 
     return data;
   } catch (error: any) {
-    if (showToast) {
-      console.error(`[API Request Error] ${method} ${endpoint}:`, error);
-    }
+    console.error(`[API Request Error] ${method} ${endpoint}:`, error);
     const finalError = error instanceof Error ? error : new Error(String(error || errorMessage));
     if (showToast && finalError.message !== 'Unauthorized') {
       toast.error(finalError.message);

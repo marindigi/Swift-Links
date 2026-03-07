@@ -172,10 +172,18 @@ export const DomainManager: React.FC<DomainManagerProps> = ({
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className={cn(
-                      "font-medium transition-colors truncate max-w-[150px] sm:max-w-none",
-                      theme === 'dark' ? "text-white" : "text-gray-900"
-                    )}>{domain.name}</span>
+                    <div>
+                      <span className={cn(
+                        "font-medium transition-colors truncate max-w-[150px] sm:max-w-none block",
+                        theme === 'dark' ? "text-white" : "text-gray-900"
+                      )}>{domain.name}</span>
+                      {domain.expiresAt && (
+                        <span className="text-[10px] text-gray-500 flex items-center gap-1 mt-0.5">
+                          <Clock size={10} />
+                          Expires: {new Date(domain.expiresAt).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
                     {domain.status && (
                       <span className={cn(
                         "text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-lg flex items-center gap-1.5",

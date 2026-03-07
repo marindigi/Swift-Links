@@ -22,7 +22,6 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON && process.env.FIREBASE_SERVICE_AC
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount)
     });
-    console.log("Firebase Admin initialized successfully with Service Account");
   } catch (error) {
     console.error("Failed to initialize Firebase Admin with Service Account JSON:", error);
   }
@@ -31,7 +30,6 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON && process.env.FIREBASE_SERVICE_AC
     admin.initializeApp({
       projectId: process.env.VITE_FIREBASE_PROJECT_ID
     });
-    console.log("Firebase Admin initialized with Project ID:", process.env.VITE_FIREBASE_PROJECT_ID);
   } catch (error) {
     console.error("Failed to initialize Firebase Admin with Project ID:", error);
   }
@@ -66,8 +64,6 @@ const transporter = nodemailer.createTransport({
 const sendEmail = async (to: string, subject: string, html: string) => {
   try {
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-      console.log('Email sending skipped: SMTP credentials not configured.');
-      console.log(`To: ${to}\nSubject: ${subject}\nBody: ${html}`);
       return;
     }
     
@@ -82,7 +78,6 @@ const sendEmail = async (to: string, subject: string, html: string) => {
       subject,
       html,
     });
-    console.log(`Email sent successfully to ${to}`);
   } catch (error) {
     console.error('Failed to send email:', error);
   }
@@ -167,6 +162,10 @@ try {
 } catch (e) {}
 try {
   db.exec("ALTER TABLE users ADD COLUMN resetTokenExpiresAt DATETIME");
+} catch (e) {}
+
+try {
+  db.exec("ALTER TABLE domains ADD COLUMN expiresAt DATETIME");
 } catch (e) {}
 
 // Promote specific user to admin
@@ -272,6 +271,7 @@ db.exec(`
     name TEXT UNIQUE,
     userId TEXT,
     status TEXT DEFAULT 'pending',
+    expiresAt DATETIME,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(userId) REFERENCES users(id)
   );
@@ -307,10 +307,18 @@ if (settingsCount.count === 0) {
     ['hero_subtitle', 'The enterprise-grade link management platform for modern teams. Build trust, track performance, and scale your reach.'],
     ['hero_accent_word', 'ANALYZE.'],
     ['stats_uptime', '99.9%'],
-    ['stats_support', '24/7']
+    ['stats_support', '24/7'],
+    ['show_trust_badge', 'true']
   ];
   const insert = db.prepare("INSERT INTO settings (key, value) VALUES (?, ?)");
   defaults.forEach(([k, v]) => insert.run(k, v));
+}
+
+// Add missing settings
+const existingSettings = db.prepare("SELECT key FROM settings").all() as any[];
+const existingKeys = existingSettings.map(s => s.key);
+if (!existingKeys.includes('show_trust_badge')) {
+  db.prepare("INSERT INTO settings (key, value) VALUES (?, ?)").run('show_trust_badge', 'true');
 }
 
 // Seed default features if empty
@@ -2103,27 +2111,38 @@ const checkDomainLimit = (userId: string) => {
       console.error('Error checking expiring plans:', error);
     }
 
-    // Check expiring domains (assuming domains have an expiresAt field, if not, we'll skip or add it)
+    // Check expiring domains (30 days notice)
     try {
-      // If domains don't have expiresAt, this will just return empty or fail gracefully
+      const thirtyDaysFromNow = new Date();
+      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+      thirtyDaysFromNow.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(thirtyDaysFromNow);
+      endOfDay.setHours(23, 59, 59, 999);
+
       const expiringDomains = db.prepare(`
-        SELECT d.name, u.email, u.name as userName
+        SELECT d.name, d.expiresAt, u.email, u.name as userName
         FROM domains d
         JOIN users u ON d.userId = u.id
-        WHERE d.status = 'active' AND d.createdAt < ?
-      `).all(new Date(now.getTime() - 335 * 24 * 60 * 60 * 1000).toISOString()) as any[]; // Assuming 1 year expiry, warn at 335 days (30 days before)
+        WHERE d.expiresAt >= ? AND d.expiresAt <= ?
+      `).all(thirtyDaysFromNow.toISOString(), endOfDay.toISOString()) as any[];
 
       for (const domain of expiringDomains) {
-        const subject = `Action Required: Your custom domain ${domain.name} is expiring soon`;
-        const html = `
-          <h2>Hello ${domain.userName || 'User'},</h2>
-          <p>Your custom domain <strong>${domain.name}</strong> is approaching its annual renewal date.</p>
-          <p>Please ensure your payment method is up to date to keep your custom links working.</p>
-          <br/>
-          <p>Best regards,</p>
-          <p>The Cutly Team</p>
-        `;
-        await sendEmail(domain.email, subject, html);
+        if (domain.email) {
+           const subject = `Action Required: Your custom domain ${domain.name} expires in 30 days`;
+           const html = `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2>Domain Expiration Notice</h2>
+              <p>Hello ${domain.userName || 'there'},</p>
+              <p>This is a reminder that your custom domain <strong>${domain.name}</strong> is set to expire on ${new Date(domain.expiresAt).toLocaleDateString()}.</p>
+              <p>To ensure uninterrupted service for your shortened links, please renew your domain registration with your provider or update your subscription.</p>
+              <br>
+              <p>Best regards,</p>
+              <p>The Cutly Team</p>
+            </div>
+          `;
+          await sendEmail(domain.email, subject, html);
+        }
       }
     } catch (error) {
       console.error('Error checking expiring domains:', error);
