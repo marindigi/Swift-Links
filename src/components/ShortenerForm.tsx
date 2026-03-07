@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Link2, ArrowRight, Loader2, Check, Copy, ExternalLink, History, Download, Globe, X, Calendar } from 'lucide-react';
+import { Link2, ArrowRight, Loader2, Check, Copy, ExternalLink, History, Download, Globe, X, Calendar, ChevronDown } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -40,6 +40,7 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, 
   const [bulkTotalCount, setBulkTotalCount] = useState(0);
   const [bulkCopied, setBulkCopied] = useState(false);
   const [bulkFailedUrls, setBulkFailedUrls] = useState<{url: string, error: string}[]>([]);
+  const [isFailedUrlsExpanded, setIsFailedUrlsExpanded] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -539,15 +540,32 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, 
 
                 {!bulkLoading && bulkFailedUrls.length > 0 && (
                   <div className="pt-4 border-t border-gray-200 dark:border-white/10">
-                    <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-2">Failed URLs ({bulkFailedUrls.length})</p>
-                    <div className="max-h-32 overflow-y-auto custom-scrollbar space-y-1">
-                      {bulkFailedUrls.map((item, idx) => (
-                        <div key={`failed-url-${item.url}-${idx}`} className="flex items-center justify-between text-[11px] p-2 rounded-lg bg-red-500/5 border border-red-500/10">
-                          <span className="truncate text-gray-500 max-w-[70%]">{item.url}</span>
-                          <span className="text-red-500 font-bold">{item.error}</span>
-                        </div>
-                      ))}
-                    </div>
+                    <button 
+                      onClick={() => setIsFailedUrlsExpanded(!isFailedUrlsExpanded)}
+                      className="flex items-center justify-between w-full text-[10px] font-bold text-red-500 uppercase tracking-widest mb-2"
+                    >
+                      <span>Failed URLs ({bulkFailedUrls.length})</span>
+                      <ChevronDown size={12} className={cn("transition-transform", isFailedUrlsExpanded && "rotate-180")} />
+                    </button>
+                    <AnimatePresence>
+                      {isFailedUrlsExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="max-h-32 overflow-y-auto custom-scrollbar space-y-1">
+                            {bulkFailedUrls.map((item, idx) => (
+                              <div key={`failed-url-${item.url}-${idx}`} className="flex items-center justify-between text-[11px] p-2 rounded-lg bg-red-500/5 border border-red-500/10">
+                                <span className="truncate text-gray-500 max-w-[70%]">{item.url}</span>
+                                <span className="text-red-500 font-bold">{item.error}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 )}
               </div>
