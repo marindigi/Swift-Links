@@ -148,7 +148,7 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, 
           const result = await apiClient<{ ids: string[], domainName: string | null, results: { id?: string, url: string, error?: string }[] }>('/api/bulk-shorten', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ urls: batch, domainId: selectedDomainId || undefined }),
+            body: JSON.stringify({ urls: batch, domainId: selectedDomainId || undefined, expiresAt: expiresAt || undefined }),
             showToast: false
           });
 
@@ -356,7 +356,7 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, 
 
               <div className="relative group">
               <div className={cn("absolute left-4 flex items-center pointer-events-none", bulkType === 'list' && isBulkMode ? "top-4" : "inset-y-0")}>
-                <Link2 className={cn("transition-colors", hasError ? "text-red-400" : "text-gray-400 group-focus-within:text-brand")} size={20} />
+                <Link2 className={cn("transition-colors", hasError ? "text-red-500" : "text-gray-400 group-focus-within:text-brand")} size={20} />
               </div>
               {isBulkMode && bulkType === 'list' ? (
                 <textarea
@@ -365,7 +365,8 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, 
                   onChange={(e) => { setBulkUrlList(e.target.value); setHasError(false); setShortUrl(null); }}
                   className={cn(
                     "w-full pl-12 pr-4 py-4 rounded-2xl border outline-none transition-all font-medium text-lg min-h-[120px] resize-y",
-                    theme === 'dark' ? "bg-black/20 border-white/10 text-white focus:border-brand/50" : "bg-gray-50 border-gray-200 text-gray-900 focus:border-brand/50"
+                    theme === 'dark' ? "bg-black/20 border-white/10 text-white focus:border-brand/50" : "bg-gray-50 border-gray-200 text-gray-900 focus:border-brand/50",
+                    hasError && "border-red-500 focus:border-red-500 ring-2 ring-red-500/20"
                   )}
                   required
                 />
@@ -373,18 +374,37 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, 
                 <>
                   <input
                     type="url"
-                    placeholder={isBulkMode ? "Enter base URL to generate bulk links..." : "Paste your long URL here..."}
+                    placeholder={isBulkMode ? "e.g., https://example.com/page" : "e.g., https://www.google.com/search?q=example..."}
                     value={url}
-                    onChange={(e) => { setUrl(e.target.value); setHasError(false); setShortUrl(null); }}
+                    onChange={(e) => { 
+                      setUrl(e.target.value); 
+                      setHasError(false); 
+                      setShortUrl(null); 
+                    }}
                     className={cn(
                       "w-full pl-12 pr-12 py-4 rounded-2xl border outline-none transition-all font-medium text-lg",
                       theme === 'dark' 
                         ? "bg-black/20 border-white/10 text-white placeholder:text-gray-600 focus:border-brand/50 focus:bg-black/40" 
                         : "bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-brand/50 focus:bg-white",
-                      hasError && "border-red-400 focus:border-red-400 bg-red-50/10"
+                      hasError && "border-red-500 focus:border-red-500 ring-2 ring-red-500/20",
+                      !hasError && url.length > 0 && (
+                        (() => {
+                          try { new URL(url); return true; } catch { return false; }
+                        })() ? "border-emerald-500 focus:border-emerald-500 ring-2 ring-emerald-500/20" : "border-amber-500 focus:border-amber-500 ring-2 ring-amber-500/20"
+                      )
                     )}
                     required
                   />
+                  {url.length > 0 && (
+                    <p className={cn(
+                      "mt-2 text-xs font-bold flex items-center gap-1",
+                      hasError ? "text-red-500" : 
+                      ((() => { try { new URL(url); return true; } catch { return false; } })() ? "text-emerald-500" : "text-amber-500")
+                    )}>
+                      {hasError ? "Invalid URL format." : 
+                       ((() => { try { new URL(url); return true; } catch { return false; } })() ? "Valid URL." : "Please enter a valid URL.")}
+                    </p>
+                  )}
                   {url && (
                     <button
                       type="button"
@@ -395,6 +415,12 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ theme, onSuccess, 
                     </button>
                   )}
                 </>
+              )}
+              {hasError && (
+                <p className="mt-2 text-xs font-bold text-red-500 flex items-center gap-1">
+                  <X size={12} />
+                  Invalid URL. Please check your link and try again.
+                </p>
               )}
               {isBulkMode && bulkType === 'repeat' && (
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3">

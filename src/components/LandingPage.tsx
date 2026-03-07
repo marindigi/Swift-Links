@@ -159,6 +159,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
   const [authError, setAuthError] = useState('');
   const [authSuccess, setAuthSuccess] = useState('');
   const [mockUrl, setMockUrl] = useState('');
+  const [mockError, setMockError] = useState(false);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [_selectedPlan, setSelectedPlan] = useState<string | null>(null);
 
@@ -245,9 +246,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
 
   const handleMockShorten = (e: React.FormEvent) => {
     e.preventDefault();
-    if (mockUrl) {
+    try {
+      new URL(mockUrl);
+      setMockError(false);
       setIsSignup(true);
       setShowLoginForm(true);
+    } catch {
+      setMockError(true);
     }
   };
 
@@ -350,9 +355,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                   type="url"
                   required
                   value={mockUrl}
-                  onChange={(e) => setMockUrl(e.target.value)}
+                  onChange={(e) => { setMockUrl(e.target.value); setMockError(false); }}
                   placeholder="Paste your long link here..."
-                  className="w-full bg-transparent border-none outline-none px-4 py-3 text-base placeholder-gray-400"
+                  className={cn(
+                    "w-full bg-transparent border-none outline-none px-4 py-3 text-base placeholder-gray-400",
+                    mockError && "text-red-500"
+                  )}
                 />
                 <button
                   type="submit"
@@ -361,6 +369,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ theme, setTheme, onLog
                   Shorten <ArrowRight size={16} />
                 </button>
               </div>
+              {mockError && (
+                <p className="mt-2 text-xs font-bold text-red-500 flex items-center gap-1">
+                  <X size={12} />
+                  Invalid URL. Please check your link and try again.
+                </p>
+              )}
             </motion.form>
           </motion.div>
         </div>
